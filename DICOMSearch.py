@@ -34,7 +34,7 @@ class DICOMSearchParser():
   """
 
 
-  def __init__(self,dicomStandardPath, couchDB_URL='http://localhost:5984', databaseName='newparse'):
+  def __init__(self,dicomStandardPath, couchDB_URL='http://localhost:5984', databaseName='dicom_search-2014a_chtml'):
     self.dicomStandardPath=dicomStandardPath
     self.couchDB_URL=couchDB_URL
     self.databaseName=databaseName
@@ -68,6 +68,9 @@ class DICOMSearchParser():
               if fileNamePath.endswith('.xml'):
                 print("Parsing %s" % fileNamePath)
                 self.parseDocBook(fileNamePath)
+              # parser has troubles with index.html
+              if fileNamePath.endswith('.html') and not fileNamePath.endswith('index.html'):
+                self.parseHtml(fileNamePath)
             except Exception, e:
               print ("Couldn't parse xml from %s" % fileNamePath)
               print str(e)
@@ -102,19 +105,30 @@ class DICOMSearchParser():
                 }
             }
 
+  def parseHtml(self, htmlPath):
+    """ for each <p> in the html, add a record to the db mapping
+    its location ("<part>,<file>,<type = p|h2>,<number>") to the paragraph text
+    Should also consider that text can be within <h2>, anything else?
+    """
+    print 'Parsing ',htmlPath
+    self.htmlns = "{http://www.w3.org/1999/xhtml}"
+    itemIds = {self.htmlns+"p":0, self.htmlns+"h2":0, 
+        self.htmlns+"h3":0, self.htmlns+"h4":0}
+    self.etree = ET.parse(htmlPath)
+    root = self.etree.getroot()
+    self.parseHtmlElement(htmlPath, root, itemIds)
 
   def parseDocBook(self,docBookPath):
     """Make a document for each para tag in the xml citing
     which section they are in.  Then make a document with each
     word in the paragraph pointing to that paragraph document id.
     """
-    self.etree =ET.parse(docBookPath)
+    self.etree = ET.parse(docBookPath)
     part = self.etree.getroot()
     self.ids = [os.path.splitext(os.path.split(docBookPath)[-1])[0]]
 
-    itemIds = {"para":1,"term":1}
+    itemIds = {"para":0,"term":0}
     path = []
-    print 'we are starting'
     self.nChapters = 0
     self.parseElementParagraphs(part,path,itemIds,0)
 
@@ -125,11 +139,12 @@ class DICOMSearchParser():
   def parseElementParagraphs(self,element,itemPath,itemIds,level):
     # reset paragraph counter to facilitate finding of the paragraph
     #  in HTML version within id'd element
+
     resetCounter = self.nameMap['id'] in element.attrib
     printId = None
     if resetCounter:
       printId = element.attrib[self.nameMap['id']]
-    #print ' '*level,element.tag,'level=',level,'id=',printId
+    print ' '*level,element.tag,'level=',level,'id=',printId,element
 
     if element.tag == self.nameMap['para'] or element.tag == self.nameMap['term']:
       itemType = element.tag.split('}')[1]
@@ -144,17 +159,16 @@ class DICOMSearchParser():
         jsonDictionary['_id'] = thisId
         jsonDictionary['text'] = unicode(thisText,'utf-8')
         jsonDictionary['xml_id'] = thisId.split(',')[-2]
-        self.save(jsonDictionary)
-        #self.SendToDB(paraId, paraText)
+        #self.save(jsonDictionary)
       itemIds[itemType] = itemIds[itemType]+1
-      #print ' '*level,'Added ID:',thisId
-      #print ' '*level,'Added text:',thisText
-      #print ' '*level,'New counters:',itemIds
+      print ' '*level,'Added ID:',thisId
+      print ' '*level,'Added text:',thisText
+      print ' '*level,'New counters:',itemIds
       # bump the counter even for empty paragraphs, since this will be needed
       #  for locating them later
     else:
       if resetCounter:
-        resetItemIds = {"para":1,"term":1}
+        resetItemIds = {"para":0,"term":0}
         elementId = self.nameMap['id']
         itemPath.append(element.attrib[elementId])        
       '''
@@ -164,7 +178,7 @@ class DICOMSearchParser():
           raise SystemExit
       '''
       for child in element:
-        #print ' parsing child, path: ',itemPath,' id: ',itemIds,' level: ',level
+        print ' parsing child ',child.tag,' path: ',itemPath,' id: ',itemIds,' level: ',level
         if resetCounter:
           resetItemIds = self.parseElementParagraphs(child,itemPath,resetItemIds,level+1)
         else:
@@ -174,7 +188,7 @@ class DICOMSearchParser():
         itemIds['term'] = itemIds['term']+resetItemIds['term']
         itemPath.pop()
 
-    #print ' '*level,'/'+element.tag,'level=',level,'id=',printId
+    print ' '*level,'/'+element.tag,'level=',level,'id=',printId
     return itemIds
 
   def parseElement(self,element):
@@ -233,6 +247,29 @@ class DICOMSearchParser():
       if self.nameMap['id'] in element.attrib:
         self.ids.pop()
 
+  def parseHtmlElement(self, htmlPath,element, itemIds):
+    tag = element.tag
+    if tag in itemIds.keys():
+
+      thisText = ET.tostring(element,method="text",encoding="utf-8")
+      thisText = re.sub("\s\s+"," ",thisText)
+
+      jsonDictionary = {}
+      partNumber = str(int(re.search('part(\d+)', htmlPath).groups()[0]))
+      
+      part = 'PS3.'+partNumber
+      file = re.search('(.+)\.html', htmlPath.split('/')[-1]).groups()[0]
+      jsonDictionary['_id'] = part+','+file+','+tag.split('}')[1]+','+str(itemIds[tag])
+      jsonDictionary['text'] = unicode(thisText,'utf-8')
+      self.save(jsonDictionary)
+      
+      itemIds[tag] = itemIds[tag]+1
+
+      #if tag == self.htmlns+'p':
+      #print 'Adding ',jsonDictionary
+
+    for child in element:
+      self.parseHtmlElement(htmlPath,child,itemIds)
 
   def printElement(self,element, indent=0):
     """Print a single element (recursive)"""

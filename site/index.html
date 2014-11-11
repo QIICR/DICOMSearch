@@ -12,7 +12,7 @@
   <script src="./js/jquery.couch.js"></script>
   <script src="./js/jquery.dialog.js"></script>
   <script src="./js/sprintf.js"></script>
-  <script src="//code.jquery.com/ui/1.10.3/jquery-ui.js"></script>
+  <script src="http://code.jquery.com/ui/1.10.3/jquery-ui.js"></script>
   <script src="./js/jquery.highlight.js"></script>
   <script src="./js/jquery.multiselect.min.js"></script>
 
@@ -25,7 +25,7 @@
         (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new
         Date();a=s.createElement(o),
           m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
-            })(window,document,'script','//www.google-analytics.com/analytics.js','ga');
+            })(window,document,'script','http://www.google-analytics.com/analytics.js','ga');
 
         ga('create', 'UA-44852938-2', 'auto');
         ga('send', 'pageview');
@@ -170,22 +170,20 @@ $(function() {
 
             $('#dicomText').load(url,null,function(){
               $(this).highlight($('#searchWord').val());
+
+              // scroll to the location of the searched item in the dicom text
+              //   panel
               dataLocation = $('.stickynote-selected').attr('data-location')
               whereToLocation = $('.stickynote-selected').attr("data-location").split(",")
-              whereToSect = jq(whereToLocation[whereToLocation.length-2]);
-              // this can be 'sect', 'table', 'chapter', anything else? ...
-              typeOfThing = whereToSect.split('_')[0].substring(1) // skip '#'
-              if(typeOfThing == 'sect'){
-                typeOfThing = 'section';
-              }
-              // elements with the actual id are not those that contain
-              // paragraphs. Instead, we look for the parent element of the same
-              // class that does not have id.
-              whereToSect = $(whereToSect).closest('.'+typeOfThing+':not([id])')
-              whereToPara = Number(whereToLocation[whereToLocation.length-1].split('_')[1])-1;
-              par = $(whereToSect).find('p')[whereToPara]
+              console.log(whereToLocation)
+
+              // when we parse from html, not xml, we scroll directly to html tags
+              var tagToScrollTo = whereToLocation[whereToLocation.length-2];
+              var tagNumberToScrollTo = Number(whereToLocation[whereToLocation.length-1])
+
+              tag = $(this).find(tagToScrollTo)[tagNumberToScrollTo]
               $('.right').scrollTop(0);
-              $('.right').scrollTop($(par).position().top);
+              $('.right').scrollTop($(tag).position().top);
 
               // would be nice to reload the next/prev page into the same div
               var allLinks = $(this).find('a');
@@ -201,6 +199,11 @@ $(function() {
                 thisImage = allImages[i];
                 figPath = thisImage.src.substr(thisImage.src.search('figures'),thisImage.src.length-1);
                 thisImage.src = dicomBaseURL+'/chtml/'+partFile+'/'+figPath;
+                thisImage.onload = function(){
+                  tag = $('.right').find(tagToScrollTo)[tagNumberToScrollTo];
+                  $('.right').scrollTop(0);
+                  $('.right').scrollTop($(tag).position().top);
+                };
               };
             });
             
@@ -213,7 +216,7 @@ $(function() {
     };
     var partsSelected = $("#partSelector").val();
     console.log(partsSelected);
-    var searchURL = "https://fedorov.cloudant.com/dicom_search/_design/search/_search/textSearch";
+    var searchURL = "http://fedorov.cloudant.com/dicom_search-2014a-chtml/_design/search/_search/textSearch";
     var searchQuery = key;
     if(partsSelected){
       searchQuery = searchQuery + " AND (";
