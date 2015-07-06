@@ -25,19 +25,19 @@ TODO:
 
 import sys, os, traceback, re
 import json, couchdb
+from couchdb import http
 import lxml.etree as ET
 
 
 # {{{ DICOMSearchParser
-class DICOMSearchParser():
+class DICOMSearchParser:
   """Parse xml files in the dicom standard and create the database.
   """
 
-
-  def __init__(self,dicomStandardPath, couchDB_URL='http://localhost:5984', databaseName='newparse'):
-    self.dicomStandardPath=dicomStandardPath
-    self.couchDB_URL=couchDB_URL
-    self.databaseName=databaseName
+  def __init__(self, dicomStandardPath, couchDB_URL='http://localhost:5984', databaseName='DICOMSearch'):
+    self.dicomStandardPath = dicomStandardPath
+    self.couchDB_URL = couchDB_URL
+    self.databaseName = databaseName
 
     self.ids = []
     self.paragraphNumber = 0
@@ -53,62 +53,62 @@ class DICOMSearchParser():
     # create a fresh database
     self.couch = couchdb.Server(self.couchDB_URL)
     try:
-        self.couch.delete(self.databaseName)
-    except:
-        pass
+      self.couch.delete(self.databaseName)
+    except http.ResourceNotFound:
+      pass
     self.db = self.couch.create(self.databaseName)
 
   def parseToDatabase(self):
     """Look through dicomStandardPath for xml files
     and then parse each one"""
     for root, dirs, files in os.walk(self.dicomStandardPath):
-        for fileName in files:
-            fileNamePath = os.path.join(root,fileName)
-            try:
-              if fileNamePath.endswith('.xml'):
-                print("Parsing %s" % fileNamePath)
-                self.parseDocBook(fileNamePath)
-            except Exception, e:
-              print ("Couldn't parse xml from %s" % fileNamePath)
-              print str(e)
-              traceback.print_exc()
-              continue
-  def save(self,jsonDictionary):
+      for fileName in files:
+        fileNamePath = os.path.join(root, fileName)
+        try:
+          if fileNamePath.endswith('.xml'):
+            print("Parsing %s" % fileNamePath)
+            self.parseDocBook(fileNamePath)
+        except Exception, e:
+          print ("Couldn't parse xml from %s" % fileNamePath)
+          print str(e)
+          traceback.print_exc()
+          continue
+
+  def save(self, jsonDictionary):
     try:
       self.db.save(jsonDictionary)
-    except:
+    except http.ResourceConflict:
       e = sys.exc_info()[0]
       print 'Failed to save: ',e
       print jsonDictionary
       sys.exit(0)
 
   def loadDesign(self):
-      """Load the design documents for the search views
-      http://127.0.0.1:5984/dicom_search/_design/search/_view/paraByWord?key=%22acted%22&include_docs=true&reduce=false
-      """
-      self.db['_design/search'] = {
-              'language' : 'javascript',
-              'views' : {
-                  'paraByWord' : {
-                      'map' : '''
-                        function(doc) {
-                          if (doc.word) {
-                            emit( doc.word, { "_id" : doc.paraID } );
-                          }
-                        }
-                      ''',
-                      'reduce' : '''_count()''',
-                    }
-                }
+    """Load the design documents for the search views
+    http://127.0.0.1:5984/dicom_search/_design/search/_view/paraByWord?key=%22acted%22&include_docs=true&reduce=false
+    """
+    self.db['_design/search'] = {
+      'language' : 'javascript',
+      'views' : {
+        'paraByWord' : {
+          'map' : '''
+            function(doc) {
+              if (doc.word) {
+                emit( doc.word, { "_id" : doc.paraID } );
+              }
             }
+          ''',
+        'reduce' : '''_count()''',
+        }
+      }
+    }
 
-
-  def parseDocBook(self,docBookPath):
+  def parseDocBook(self, docBookPath):
     """Make a document for each para tag in the xml citing
     which section they are in.  Then make a document with each
     word in the paragraph pointing to that paragraph document id.
     """
-    self.etree =ET.parse(docBookPath)
+    self.etree = ET.parse(docBookPath)
     part = self.etree.getroot()
     self.ids = [os.path.splitext(os.path.split(docBookPath)[-1])[0]]
 
@@ -116,13 +116,11 @@ class DICOMSearchParser():
     path = []
     print 'we are starting'
     self.nChapters = 0
-    self.parseElementParagraphs(part,path,itemIds,0)
+    self.parseElementParagraphs(part, path, itemIds, 0)
 
     ##self.parseElement(part)
 
-  
-
-  def parseElementParagraphs(self,element,itemPath,itemIds,level):
+  def parseElementParagraphs(self, element, itemPath, itemIds, level):
     # reset paragraph counter to facilitate finding of the paragraph
     #  in HTML version within id'd element
     resetCounter = self.nameMap['id'] in element.attrib
@@ -146,7 +144,7 @@ class DICOMSearchParser():
         jsonDictionary['xml_id'] = thisId.split(',')[-2]
         self.save(jsonDictionary)
         #self.SendToDB(paraId, paraText)
-      itemIds[itemType] = itemIds[itemType]+1
+      itemIds[itemType] += 1
       #print ' '*level,'Added ID:',thisId
       #print ' '*level,'Added text:',thisText
       #print ' '*level,'New counters:',itemIds
@@ -166,9 +164,9 @@ class DICOMSearchParser():
       for child in element:
         #print ' parsing child, path: ',itemPath,' id: ',itemIds,' level: ',level
         if resetCounter:
-          resetItemIds = self.parseElementParagraphs(child,itemPath,resetItemIds,level+1)
+          resetItemIds = self.parseElementParagraphs(child, itemPath, resetItemIds, level+1)
         else:
-          itemIds = self.parseElementParagraphs(child,itemPath,itemIds,level+1)
+          itemIds = self.parseElementParagraphs(child, itemPath, itemIds, level+1)
       if resetCounter:
         itemIds['para'] = itemIds['para']+resetItemIds['para']
         itemIds['term'] = itemIds['term']+resetItemIds['term']
@@ -177,7 +175,7 @@ class DICOMSearchParser():
     #print ' '*level,'/'+element.tag,'level=',level,'id=',printId
     return itemIds
 
-  def parseElement(self,element):
+  def parseElement(self, element):
     if element.tag == "{http://docbook.org/ns/docbook}para":
       paraText = ET.tostring(element,method="text",encoding="utf-8")
       #print self.paragraphNumber
@@ -200,32 +198,31 @@ class DICOMSearchParser():
         self.paragraphNumberMap[paraLocation] = paragraphNumber+1
 
       if len(paraText)>1:
-            jsonDictionary = {}
-            paraID= paraLocation + ',para_%d' % paragraphNumber
-            jsonDictionary['_id'] = paraID
-            jsonDictionary['text'] = unicode(paraText,'utf8')
-            jsonDictionary['xml_id'] = paraID.split(',')[-2]
-            ###self.paragraphNumber += 1
-            #print paraID
-            #print paraText
-            self.save(jsonDictionary)
+        jsonDictionary = {}
+        paraID= paraLocation + ',para_%d' % paragraphNumber
+        jsonDictionary['_id'] = paraID
+        jsonDictionary['text'] = unicode(paraText,'utf8')
+        jsonDictionary['xml_id'] = paraID.split(',')[-2]
+        ###self.paragraphNumber += 1
+        #print paraID
+        #print paraText
+        self.save(jsonDictionary)
 
-            if 0: 
-              words = set(map(str.lower, map(str,paraText.split())))
-              for word in words:
-                if len(word) > 4:
-                    #print 'Word is ',word
-                    jsonDictionary = {}
-                    jsonDictionary['_id'] = unicode(paraID,'utf8') + "," + unicode(word,'utf8')
-                    jsonDictionary['paraID'] = unicode(paraID,'utf8')
-                    jsonDictionary['word'] = unicode(word,'utf8')
-                    jsonDictionary['xml_id'] = paraID.split(',')[-2]
-                    self.save(jsonDictionary)
+        if 0:
+          words = set(map(str.lower, map(str,paraText.split())))
+          for word in words:
+            if len(word) > 4:
+              #print 'Word is ',word
+              jsonDictionary = {}
+              jsonDictionary['_id'] = unicode(paraID,'utf8') + "," + unicode(word,'utf8')
+              jsonDictionary['paraID'] = unicode(paraID,'utf8')
+              jsonDictionary['word'] = unicode(word,'utf8')
+              jsonDictionary['xml_id'] = paraID.split(',')[-2]
+              self.save(jsonDictionary)
     # paragraphs can have id's, do not reset if this is the case
     elif self.nameMap['id'] in element.attrib:
       self.ids.append(element.attrib[self.nameMap['id']])
       self.paragraphNumber = 1
-
 
     if element.tag != "{http://docbook.org/ns/docbook}para":
       for child in element:
@@ -233,8 +230,7 @@ class DICOMSearchParser():
       if self.nameMap['id'] in element.attrib:
         self.ids.pop()
 
-
-  def printElement(self,element, indent=0):
+  def printElement(self, element, indent=0):
     """Print a single element (recursive)"""
     if self.skipSceneViews and element.tag == 'SceneView':
       return
@@ -267,21 +263,21 @@ class DICOMSearchParser():
 # {{{ main, test, and arg parse
 
 def usage():
-    print ("DICOMSearch [DICOMStandard] <CouchDB_URL> <DatabaseName>")
-    print (" CouchDB_URL default http:localhost:5984")
-    print (" DatabaseName default DICOMSearch")
+  print ("DICOMSearch [DICOMStandard] <CouchDB_URL> <DatabaseName>")
+  print (" CouchDB_URL default http://localhost:5984")
+  print (" DatabaseName default DICOMSearch")
 
 def main ():
-    global parser
-    dicomStandardPath = sys.argv[1]
-    parser = DICOMSearchParser(dicomStandardPath)
-    if len(sys.argv) > 2:
-        parser.couchDB_URL = sys.argv[2]
-    if len(sys.argv) > 3:
-        parser.databaseName = sys.argv[3]
+  global parser
+  dicomStandardPath = sys.argv[1]
+  parser = DICOMSearchParser(dicomStandardPath)
+  if len(sys.argv) > 2:
+    parser.couchDB_URL = sys.argv[2]
+  if len(sys.argv) > 3:
+    parser.databaseName = sys.argv[3]
 
-    parser.loadDesign()
-    parser.parseToDatabase()
+  parser.loadDesign()
+  parser.parseToDatabase()
 
 forIPython = """
 import sys
@@ -289,14 +285,14 @@ sys.argv = ('test', '/Users/fedorov/github/DICOMStandard')
 """
 
 if __name__ == '__main__':
-    try:
-        if len(sys.argv) < 2:
-            raise BaseException('missing arguments')
-        main()
-    except Exception, e:
-        print ('ERROR, UNEXPECTED EXCEPTION')
-        print str(e)
-        traceback.print_exc()
+  try:
+    if len(sys.argv) < 2:
+      raise BaseException('missing arguments')
+    main()
+  except Exception, e:
+    print ('ERROR, UNEXPECTED EXCEPTION')
+    print str(e)
+    traceback.print_exc()
 
 # }}}
 
