@@ -15,6 +15,12 @@ A utility couchSite copies the local site directory as attachments to a document
 called .site so that the site can be hosted directly from CouchDB.  The site
 allows you to type a keyword and get instant results.
 
+Dependencies
+=======
+couchdb - https://pypi.python.org/pypi/CouchDB
+
+lxml - https://pypi.python.org/pypi/lxml/3.4.4
+
 Caveats
 =======
 
