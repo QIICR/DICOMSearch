@@ -24,7 +24,7 @@ TODO:
 """
 
 import sys, os, traceback, re
-import json, couchdb
+import couchdb
 from couchdb import http
 import lxml.etree as ET
 
@@ -50,7 +50,10 @@ class DICOMSearchParser:
             'id' : '{http://www.w3.org/XML/1998/namespace}id',
             }
 
-    # create a fresh database
+    self.couch = None
+    self.db = None
+
+  def setupDatabase(self):
     self.couch = couchdb.Server(self.couchDB_URL)
     try:
       self.couch.delete(self.databaseName)
@@ -100,6 +103,21 @@ class DICOMSearchParser:
           ''',
         'reduce' : '''_count()''',
         }
+      },
+      "indexes": {
+        "textSearch": {
+          "analyzer": "standard",
+          "index": '''
+            function(doc){
+              index("default", doc.text,{
+                "store":"yes"
+              });
+              index("location", doc._id, {
+                "store":"yes"
+              });
+            }
+          '''
+        }
       }
     }
 
@@ -108,19 +126,18 @@ class DICOMSearchParser:
     which section they are in.  Then make a document with each
     word in the paragraph pointing to that paragraph document id.
     """
-    self.etree = ET.parse(docBookPath)
-    part = self.etree.getroot()
+    etree = ET.parse(docBookPath)
+    part = etree.getroot()
     self.ids = [os.path.splitext(os.path.split(docBookPath)[-1])[0]]
 
-    itemIds = {"para":1,"term":1}
     path = []
     print 'we are starting'
     self.nChapters = 0
-    self.parseElementParagraphs(part, path, itemIds, 0)
+    self.parseElementParagraphs(part, path, 1, 0)
 
     ##self.parseElement(part)
 
-  def parseElementParagraphs(self, element, itemPath, itemIds, level):
+  def parseElementParagraphs(self, element, itemPath, termId, level):
     # reset paragraph counter to facilitate finding of the paragraph
     #  in HTML version within id'd element
     resetCounter = self.nameMap['id'] in element.attrib
@@ -130,21 +147,24 @@ class DICOMSearchParser:
     #print ' '*level,element.tag,'level=',level,'id=',printId
 
     if element.tag == self.nameMap['para'] or element.tag == self.nameMap['term']:
-      itemType = element.tag.split('}')[1]
-      currentNumber = itemIds[itemType]
       thisText = ET.tostring(element,method="text",encoding="utf-8")
       # remove duplicate spaces
       thisText = re.sub("\s\s+"," ",thisText)
       # ignore (almost) empty paragraphs
-      if len(thisText)>1:        
-        thisId = ','.join(itemPath)+','+itemType+'_%d' % currentNumber
+      if len(thisText)>1:
+        if element.tag == self.nameMap['para']:
+          thisId = ','.join(itemPath)+','+element.attrib[self.nameMap['id']]
+        else:
+          itemType = element.tag.split('}')[1]
+          thisId = ','.join(itemPath)+','+itemType+'_%d' % termId
         jsonDictionary = {}
         jsonDictionary['_id'] = thisId
         jsonDictionary['text'] = unicode(thisText,'utf-8')
         jsonDictionary['xml_id'] = thisId.split(',')[-2]
         self.save(jsonDictionary)
         #self.SendToDB(paraId, paraText)
-      itemIds[itemType] += 1
+      if element.tag == self.nameMap['term']:
+        termId += 1
       #print ' '*level,'Added ID:',thisId
       #print ' '*level,'Added text:',thisText
       #print ' '*level,'New counters:',itemIds
@@ -152,9 +172,9 @@ class DICOMSearchParser:
       #  for locating them later
     else:
       if resetCounter:
-        resetItemIds = {"para":1,"term":1}
+        resetTermId = 1
         elementId = self.nameMap['id']
-        itemPath.append(element.attrib[elementId])        
+        itemPath.append(element.attrib[elementId])
       '''
       if element.tag == self.nameMap['chapter']:
         self.nChapters = self.nChapters+1
@@ -164,29 +184,28 @@ class DICOMSearchParser:
       for child in element:
         #print ' parsing child, path: ',itemPath,' id: ',itemIds,' level: ',level
         if resetCounter:
-          resetItemIds = self.parseElementParagraphs(child, itemPath, resetItemIds, level+1)
+          resetTermId = self.parseElementParagraphs(child, itemPath, resetTermId, level+1)
         else:
-          itemIds = self.parseElementParagraphs(child, itemPath, itemIds, level+1)
+          termId = self.parseElementParagraphs(child, itemPath, termId, level+1)
       if resetCounter:
-        itemIds['para'] = itemIds['para']+resetItemIds['para']
-        itemIds['term'] = itemIds['term']+resetItemIds['term']
+        termId =+ resetTermId
         itemPath.pop()
 
     #print ' '*level,'/'+element.tag,'level=',level,'id=',printId
-    return itemIds
+    return termId
 
   def parseElement(self, element):
     if element.tag == "{http://docbook.org/ns/docbook}para":
       paraText = ET.tostring(element,method="text",encoding="utf-8")
       #print self.paragraphNumber
       #print paraText
-  
+
       # remove duplicate spaces
       paraText = re.sub("\s\s+"," ",paraText)
       #paraText = paraText.replace('\n','')
-     
+
       # Problem: if there is an id'd element inside id'd, it will reset the
-      # counter of paragraphs, and 
+      # counter of paragraphs, and
       # Solution: keep the map of mapping from id (everything except para) to
       #   the paragraph number
       paraLocation = ','.join(self.ids)
@@ -224,39 +243,6 @@ class DICOMSearchParser:
       self.ids.append(element.attrib[self.nameMap['id']])
       self.paragraphNumber = 1
 
-    if element.tag != "{http://docbook.org/ns/docbook}para":
-      for child in element:
-        self.parseElement(child)
-      if self.nameMap['id'] in element.attrib:
-        self.ids.pop()
-
-  def printElement(self, element, indent=0):
-    """Print a single element (recursive)"""
-    if self.skipSceneViews and element.tag == 'SceneView':
-      return
-    if element.tag in self.skipTags:
-      return
-    print(indent*' ' + '(')
-    print(indent*' ' + element.tag)
-    if self.idOnly:
-      if 'id' in element.attrib:
-        idString = element.attrib['id']
-      else:
-        idString = "noID"
-      print(indent*' ' + idString)
-      for key in element.attrib:
-        if key.endswith('ID') or key.endswith('Ref'):
-          print(indent*' ' + '...' + key + ': ' + element.attrib[key])
-    else:
-      print(indent*' ' + str(element.attrib))
-    for child in element:
-      self.printElement(child, indent=indent+4)
-    print(indent*' ' + ')')
-
-  def printScene(self):
-    """Print the entire scene dom"""
-    mrml = self.etree.getroot()
-    self.printElement(mrml)
 
 # }}}
 
@@ -267,8 +253,7 @@ def usage():
   print (" CouchDB_URL default http://localhost:5984")
   print (" DatabaseName default DICOMSearch")
 
-def main ():
-  global parser
+def main():
   dicomStandardPath = sys.argv[1]
   parser = DICOMSearchParser(dicomStandardPath)
   if len(sys.argv) > 2:
@@ -276,6 +261,7 @@ def main ():
   if len(sys.argv) > 3:
     parser.databaseName = sys.argv[3]
 
+  parser.setupDatabase()
   parser.loadDesign()
   parser.parseToDatabase()
 
