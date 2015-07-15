@@ -2,16 +2,6 @@
  * Created by Christian on 7/9/15.
  */
 
-$(document).ready(function(){
-  $("#partSelector").multiselect();
-
-  $("#multiselect").multiselect({
-    click: function(event,ui){
-      updateHits($("searchWord").val());
-    }
-  });
-});
-
 function fileExists(url){
   var http = new XMLHttpRequest();
   http.open('HEAD', url, false);
@@ -66,6 +56,25 @@ function addURLParam(url, name, value){
 
 
 $(function() {
+  //
+  //$("#partSelector").multiselect();
+  //
+  //$("#partSelector").multiselect({
+  //  click: function(event,ui){
+  //    updateHits($("searchWord").val());
+  //  },
+  //});
+
+  $('#partSelector').SumoSelect({
+    placeholder: 'Parts to search in',
+    selectAll: true,
+    selectAlltext: "All Parts",
+    triggerChangeCombined: true,
+  });
+
+  $('#partSelector').change(function(){
+    console.log('change is firing')
+  })
 
   function getURLParameter(parameter) {
     // from http://www.jquerybyexample.net/2012/06/get-url-parameters-using-jquery.html
@@ -142,7 +151,8 @@ $(function() {
       if(xhr.readyState == 4){
         if( (xhr.status >= 200 && xhr.status < 300) || xhr.status == 304){
           var jsonResponse = JSON.parse(xhr.responseText);
-          $('#hitList').append($("<p class='hitcount'>Results for \""+key+"\" ("+jsonResponse.rows.length+" hits)</p>"));
+
+          $('#hitList').text(sprintf("Results for %s (%d hits)", key, jsonResponse.rows.length));
 
           $.each(jsonResponse.rows, function(index, value) {
             var partID = value.id.split(',')[0];
