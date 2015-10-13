@@ -1,106 +1,136 @@
-<html>
+<!doctype html>
+<html class="no-js" lang="en">
   <head>
-    <meta charset="utf-8">
-    <link rel="shortcut icon" type="image/ico" href="http://couchdb.apache.org/favicon.ico">
-
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>A Searchable Index of the DICOM Base Standard 2015c</title>
+    <link rel="stylesheet" href="stylesheets/app.css" />
+    <link rel="stylesheet" href="stylesheets/foundation-select.css" />
 
-    <link href="./css/sumoselect.css" rel="stylesheet" type="text/css" />
-    <link href="./css/dicom.css" rel="stylesheet" type="text/css" />
-    <link href="./css/dicom.search.css" rel="stylesheet" type="text/css" />
+    <!--<link href="./css/sumoselect.css" rel="stylesheet" type="text/css" />-->
 
-
-    <script src="./js/jquery.js"></script>
-    <script src="./js/jquery-ui.js"></script>
-    <script src="./js/jquery.highlight.js"></script>
-    <script src="./js/jquery.sumoselect.min.js"></script>
-    <script src="./js/json2.js"></script>
-    <!--<script src="./js/sha1.js"></script>-->
-    <!--<script src="./js/jquery.couch.js"></script>-->
-    <!--<script src="./js/jquery.dialog.js"></script>-->
-    <script src="./js/sprintf.js"></script>
-    <script src="./js/helpers.js"></script>
+    <script src="bower_components/modernizr/modernizr.js"></script>
+    <!--<script src="./js/jquery.sumoselect.min.js"></script>-->
 
     <script>
-      (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
-      (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new
-      Date();a=s.createElement(o),
-        m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
-          })(window,document,'script','//www.google-analytics.com/analytics.js','ga');
+      function fadeOutSearchFrame() {
+        var searchFrameCol = $("#searchFrameColumn")
+        var dicomFrameCol = $("#dicomFrameColumn")
+        searchFrameCol.fadeOut()
+        searchFrameCol.css("display", "none")
+        dicomFrameCol.removeClass("large-9").addClass("large-12")
+      }
 
-      ga('create', 'UA-44852938-2', 'auto');
-      ga('send', 'pageview');
-
+      function fadeInSearchFrame() {
+        var searchFrameCol = $("#searchFrameColumn")
+        var dicomFrameCol = $("#dicomFrameColumn")
+        searchFrameCol.css("display", "block")
+        dicomFrameCol.removeClass("large-12").addClass("large-9")
+      }
     </script>
   </head>
-
   <body>
-    <div class="header">
-      <h1>A Searchable Index of the DICOM Base Standard 2015c</h1>
-    </div>
 
-    <div class="main">
-      <div class="leftTop">
-        <div id="searchBox" class="inputArea">
-          <div>
-          <label for="searchWord">Word to search for: </label>
-          <input id="searchWord">
+  <nav class="top-bar" data-topbar role="navigation">
+    <section class="middle tab-bar-section">
+      <h3 class="title" style="color:white">A Searchable Index of the DICOM Base Standard 2015c</h3>
+    </section>
+  </nav>
+
+  <div class="row fullHeight">
+    <div class="large-3 columns maxHeight" id="searchFrameColumn"> <!-- left column-->
+      <div class="row searchFrame">
+        <div class="large-12 columns">
+          <div class="row"> <!-- Search field -->
+            <div class="large-7 columns">
+              <label> Keyword
+                <input id="searchWord" type="text" placeholder="Keyword" />
+              </label>
+            </div>
+            <div class="large-5 columns">
+              <label> max. Results
+                <select id="limit">
+                  <option selected value="10">10</option>
+                  <option value="20">20</option>
+                  <option value="100">100</option>
+                  <option value="200">200</option>
+                </select>
+              </label>
+            </div>
           </div>
-          <div>
-            <form id="limit" method="get" action="">
-              <label for="limit">Results per query: </label>
-              <input type="radio" id="limit10" name="limit" value="10" checked="checked"><label for="limit10">10</label>
-              <input type="radio" id="limit20" name="limit" value="20"><label for="limit20">20</label>
-              <input type="radio" id="limit100" name="limit" value="100"><label for="limit100">100</label>
-              <input type="radio" id="limitAll" name="limit" value="200"><label for="limitAll">200</label>
-            </form>
+          <div class="row">
+            <div class="large-7 columns">
+              <label>Check where to search</label>
+              <input id="checkboxParagraphs" type="checkbox" checked="checked"><label for="checkboxParagraphs">Paragraphs</label>
+              <input id="checkboxTerms" type="checkbox" checked="checked"><label for="checkboxTerms">Terms</label>
+            </div>
           </div>
-          <div>
-            <label for="partSelector">Parts to search in: </label>
-            <select id="partSelector"  multiple="multiple" placeholder="Hello im from placeholder">
-              <option selected value="PS3.1">PS3.1 Introduction and Overview </option>
-              <option selected value="PS3.2">PS3.2 Conformance </option>
-              <option selected value="PS3.3">PS3.3 Information Object Definitions </option>
-              <option selected value="PS3.4">PS3.4 Service Class Specifications  </option>
-              <option selected value="PS3.5">PS3.5 Data Structures and Encoding  </option>
-              <option selected value="PS3.6">PS3.6 Data Dictionary </option>
-              <option selected value="PS3.7">PS3.7 Message Exchange  </option>
-              <option selected value="PS3.8">PS3.8 Network Communication Support for Message Exchange </option>
-              <option selected value="PS3.10">PS3.10  Media Storage and File Format for Data Interchange </option>
-              <option selected value="PS3.11">PS3.11  Media Storage Application Profiles </option>
-              <option selected value="PS3.12">PS3.12  Media Formats and Physical Media for Data Interchange </option>
-              <option selected value="PS3.14">PS3.14  Grayscale Standard Display Function </option>
-              <option selected value="PS3.15">PS3.15  Security Profiles </option>
-              <option selected value="PS3.16">PS3.16  Content Mapping Resource </option>
-              <option selected value="PS3.17">PS3.17  Explanatory Information </option>
-              <option selected value="PS3.18">PS3.18  Web Access to DICOM Persistent Objects (WADO) </option>
-              <option selected value="PS3.19">PS3.19  Application Hosting </option>
-              <option selected value="PS3.20">PS3.20  Transformation of DICOM to and from HL7 Standards </option>
-            </select>
+
+          <div class="row">
+            <div class="large-12 columns">
+              <label> Choose Parts
+                <select id="partSelector" multiple >
+                  <option selected value="PS3.1">PS3.1 Introduction and Overview </option>
+                  <option selected value="PS3.2">PS3.2 Conformance </option>
+                  <option selected value="PS3.3">PS3.3 Information Object Definitions </option>
+                  <option selected value="PS3.4">PS3.4 Service Class Specifications  </option>
+                  <option selected value="PS3.5">PS3.5 Data Structures and Encoding  </option>
+                  <option selected value="PS3.6">PS3.6 Data Dictionary </option>
+                  <option selected value="PS3.7">PS3.7 Message Exchange  </option>
+                  <option selected value="PS3.8">PS3.8 Network Communication Support for Message Exchange </option>
+                  <option selected value="PS3.10">PS3.10  Media Storage and File Format for Data Interchange </option>
+                  <option selected value="PS3.11">PS3.11  Media Storage Application Profiles </option>
+                  <option selected value="PS3.12">PS3.12  Media Formats and Physical Media for Data Interchange </option>
+                  <option selected value="PS3.14">PS3.14  Grayscale Standard Display Function </option>
+                  <option selected value="PS3.15">PS3.15  Security Profiles </option>
+                  <option selected value="PS3.16">PS3.16  Content Mapping Resource </option>
+                  <option selected value="PS3.17">PS3.17  Explanatory Information </option>
+                  <option selected value="PS3.18">PS3.18  Web Access to DICOM Persistent Objects (WADO) </option>
+                  <option selected value="PS3.19">PS3.19  Application Hosting </option>
+                  <option selected value="PS3.20">PS3.20  Transformation of DICOM to and from HL7 Standards </option>
+                </select>
+              </label>
+            </div>
+          </div>
+          <div class="row">
+            <div class="large-12 columns">
+              <p id="hitList" class="hitcount"></p>
+            </div>
           </div>
         </div>
-        <p id="hitList" class="hitcount"></p>
       </div>
-
-      <div class="leftBottom">
-        <div id="resultTable" class="results"></div>
-      </div>
-
-      <div class="right">
-        <div id="dicomText"></div>
+      <div class="row results">
+        <div id="resultTable" class="results large-12 columns maxHeight">
+        </div>
       </div>
     </div>
-    <div class="footer">
-      <p class="acks">This interface provided by <a href="http://qiicr.org">QIICR</a> &#169; 2015.
-        <a href="http://www.dclunie.com/dicom-status/status.html#BaseStandard2013">The DICOM Standard</a> is &#169;
-        <a href="http://dicom.nema.org">NEMA</a> 2015. Related projects include:
-        <a href="http://slicer.org">3D Slicer</a>
-        <a href="http://na-mic.org">NA-MIC</a>
-        <a href="http://nac.spl.harvard.edu">NAC</a>
-        <a href="http://ncigt.org">NCIGT</a>
-        <a href="http://commontk.org">CTK</a>
-      </p>
+    <div class="large-9 columns maxHeight" id="dicomFrameColumn"> <!-- right column-->
+      <div class="row maxHeight">
+        <div class="large-12 columns maxHeight noPadding">
+          <iframe id="dicomText" src=""></iframe>
+        </div>
+      </div>
     </div>
+  </div>
+
+  <div class="row footer">
+    <p class="acks">This interface provided by <a href="http://qiicr.org">QIICR</a> &#169; 2015.
+      <a href="http://www.dclunie.com/dicom-status/status.html#BaseStandard2013">The DICOM Standard</a> is &#169;
+      <a href="http://dicom.nema.org">NEMA</a> 2015. Related projects include:
+      <a href="http://slicer.org">3D Slicer</a>
+      <a href="http://na-mic.org">NA-MIC</a>
+      <a href="http://nac.spl.harvard.edu">NAC</a>
+      <a href="http://ncigt.org">NCIGT</a>
+      <a href="http://commontk.org">CTK</a>
+    </p>
+  </div>
+
+  <script src="bower_components/jquery/dist/jquery.min.js"></script>
+  <script src="./js/jquery.highlight.js"></script>
+  <script src="./js/json2.js"></script>
+  <script src="./js/sprintf.js"></script>
+  <script src="bower_components/foundation/js/foundation.min.js"></script>
+  <script src="./js/helpers.js"></script>
+  <script src="js/app.js"></script>
   </body>
 </html>
-

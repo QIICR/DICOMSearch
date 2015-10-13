@@ -2,6 +2,8 @@
  * Created by Christian on 7/9/15.
  */
 
+var baseURL = "https://fedorov.cloudant.com/";
+
 function fileExists(url){
   var http = new XMLHttpRequest();
   http.open('HEAD', url, false);
@@ -65,17 +67,6 @@ $(function() {
   //  },
   //});
 
-  $('#partSelector').SumoSelect({
-    placeholder: 'Parts to search in',
-    selectAll: true,
-    selectAlltext: "All Parts",
-    triggerChangeCombined: true,
-  });
-
-  $('#partSelector').change(function(){
-    console.log('change is firing')
-  })
-
   function getURLParameter(parameter) {
     // from http://www.jquerybyexample.net/2012/06/get-url-parameters-using-jquery.html
     var pageURL = window.location.search.substring(1);
@@ -108,19 +99,10 @@ $(function() {
     $('#hitList').empty();
   }
 
-  function getLimit() {
-    var limit = 10; // TODO: better version of this block
-    if ($('#limit20').attr('checked')) { limit = 20; }
-    if ($('#limit100').attr('checked')) { limit = 100; }
-    if ($('#limitAll').attr('checked')) { limit = 200; } // needs to be an int
-    return limit;
-  }
-
   function createSearchUrl(key) {
     var partsSelected = $("#partSelector").val();
-    console.log(partsSelected);
-    //var searchURL = "https://fedorov.cloudant.com/dicom_search/_design/search/_search/textSearch";
-    var searchURL = "https://fedorov.cloudant.com/dicom_search_test/_design/search/_search/textSearch";
+    //console.log(partsSelected);
+    var searchURL = baseURL + "dicom_standard_2015c/_design/search/_search/textSearch";
     var searchQuery = key;
     if (partsSelected) {
       searchQuery = searchQuery + " AND (";
@@ -136,7 +118,7 @@ $(function() {
     console.log('Search URL: ' + searchURL);
     // Lucene search will return at most 200 hits at a time
     // for now, no support for bookmarks, show just the first 200
-    searchURL = addURLParam(searchURL, "limit", getLimit());
+    searchURL = addURLParam(searchURL, "limit", $("#limit").val());
     console.log('Search URL: ' + searchURL);
     return searchURL;
   }
@@ -166,7 +148,8 @@ $(function() {
               var partFile = sprintf("part%02d", citation[0].split('.')[1]);
               var partSection = '';
               //dicomBaseURL = "ftp://medical.nema.org/medical/dicom/2014a/output";
-              var dicomBaseURL = ".";
+              //var dicomBaseURL = ".";
+              var dicomBaseURL = baseURL + "dicom_standard_2015c/.site";
               for(var idx=2; idx<citation.length; idx++){
                 partSection = citation[citation.length-idx];
                 var url = dicomBaseURL+'/chtml/'+partFile+'/'+partSection+'.html';
@@ -182,12 +165,19 @@ $(function() {
               $('.stickynote-selected').removeClass('stickynote-selected');
               $(this).addClass('stickynote-selected');
 
-              $('#dicomText').load(url, null, function(){
-                $(this).highlight($('#searchWord').val());
+              var iFrame = $("#dicomText");
+              iFrame.attr("src", url);
+
+              iFrame.load(function() {
+                var dicomLookupView = $(this).contents();
+
+                dicomLookupView.find("html,body").highlight($('#searchWord').val());
+                dicomLookupView.find('.highlight').css('background-color', 'green');
                 var sticknote = $('.stickynote-selected');
                 var dataLocation = sticknote.attr('data-location');
                 var whereToLocation = sticknote.attr("data-location").split(",");
                 var whereToSect = jq(whereToLocation[whereToLocation.length-2]);
+
                 // this can be 'sect', 'table', 'chapter', anything else? ...
                 var typeOfThing = whereToSect.split('_')[0].substring(1); // skip '#'
                 if(typeOfThing == 'sect'){
@@ -200,30 +190,32 @@ $(function() {
                 var id = whereToLocation[whereToLocation.length - 1];
                 var itemType = id.split('_')[0];
                 if(itemType == "term") {
-                  whereToSect = $(whereToSect).closest('.' + typeOfThing + ':not([id])');
+                  whereToSect = dicomLookupView.find(whereToSect).closest('.' + typeOfThing + ':not([id])');
                   var whereToPara = Number(id.split('_')[1]) - 1;
-                  id = $(whereToSect).find('p')[whereToPara];
+                  id = whereToSect.find('p')[whereToPara];
                 } else if (itemType == "para") {
                   id = "#" + id;
                 }
 
-                var dicomLookupView = $('.right');
-                dicomLookupView.scrollTop(0);
-                dicomLookupView.scrollTop($(id).position().top);
+                if (id) {
+                  var topPosition = dicomLookupView.find(id).position().top;
+                  dicomLookupView.find("html,body").scrollTop(0);
+                  dicomLookupView.find("html,body").scrollTop(topPosition);
+                }
 
                 // would be nice to reload the next/prev page into the same div
                 var allLinks = $(this).find('a');
                 allLinks.each(function(index, link) {
-                  origHref = link.href.split('/');
-                  fileName = origHref[origHref.length-1];
-                  link.href='http://medical.nema.org/medical/dicom/2014a/output/chtml/'+partFile+'/'+fileName;
-                  link.target='_blank';
+                  var origHref = link.href.split('/');
+                  var fileName = origHref[origHref.length-1];
+                  link.href= dicomBaseURL + '/chtml/' + partFile + '/' + fileName;
+                  link.target = '_blank';
                 });
 
                 var allImages = $(this).find('img');
                 allImages.each(function(index, image) {
                   var figPath = image.src.substr(image.src.search('figures'),image.src.length-1);
-                  image.src = dicomBaseURL+'/chtml/'+partFile+'/'+figPath;
+                  image.src = dicomBaseURL + '/chtml/' + partFile + '/' + figPath;
                 });
               });
             });
@@ -237,15 +229,17 @@ $(function() {
   }
 
   // make the limit input into a jqui spinner
-  $('#limit').buttonset();
-  // update result on key press
 
   var searchWordInput = $('#searchWord');
 
   searchWordInput.keyup(function(e) {
     updateHits($(this).val());
   });
-  $('#limit').find('input').click(function(e) {
+  $('#limit').change(function(e) {
+    updateHits(searchWordInput.val());
+  });
+
+  $('#partSelector').change(function(){
     updateHits(searchWordInput.val());
   });
 
