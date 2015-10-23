@@ -24,281 +24,266 @@ TODO:
 """
 
 import sys, os, traceback, re
-import json, couchdb
+import couchdb
+from couchdb import http
 import lxml.etree as ET
+import argparse
 
 
 # {{{ DICOMSearchParser
-class DICOMSearchParser():
+
+class DICOMSearchParser(object):
   """Parse xml files in the dicom standard and create the database.
   """
 
+  NAME_MAP = {'para' : '{http://docbook.org/ns/docbook}para',
+             'term' : '{http://docbook.org/ns/docbook}term',
+             'chapter' : '{http://docbook.org/ns/docbook}chapter',
+             'id' : '{http://www.w3.org/XML/1998/namespace}id'}
 
-  def __init__(self,dicomStandardPath, couchDB_URL='http://localhost:5984', databaseName='newparse'):
-    self.dicomStandardPath=dicomStandardPath
-    self.couchDB_URL=couchDB_URL
-    self.databaseName=databaseName
+  def __init__(self, dicomStandardPath, **kwargs):
+    self.dicomStandardPath = dicomStandardPath
+
+    for key, value in kwargs.iteritems():
+      setattr(self, key, value)
+
+    self.dbConnection = None
 
     self.ids = []
     self.paragraphNumber = 0
     self.paragraphNumberMap = {}
 
-    self.nameMap = {
-            'para' : '{http://docbook.org/ns/docbook}para',
-            'term' : '{http://docbook.org/ns/docbook}term',
-            'chapter' : '{http://docbook.org/ns/docbook}chapter',
-            'id' : '{http://www.w3.org/XML/1998/namespace}id',
-            }
+  def setupDatabase(self):
+    raise NotImplementedError
 
-    # create a fresh database
-    self.couch = couchdb.Server(self.couchDB_URL)
-    try:
-        self.couch.delete(self.databaseName)
-    except:
-        pass
-    self.db = self.couch.create(self.databaseName)
+  def save(self, jsonDictionary):
+    raise NotImplementedError
+
+  def loadDesign(self):
+    pass
 
   def parseToDatabase(self):
     """Look through dicomStandardPath for xml files
     and then parse each one"""
     for root, dirs, files in os.walk(self.dicomStandardPath):
-        for fileName in files:
-            fileNamePath = os.path.join(root,fileName)
-            try:
-              if fileNamePath.endswith('.xml'):
-                print("Parsing %s" % fileNamePath)
-                self.parseDocBook(fileNamePath)
-            except Exception, e:
-              print ("Couldn't parse xml from %s" % fileNamePath)
-              print str(e)
-              traceback.print_exc()
-              continue
-  def save(self,jsonDictionary):
-    try:
-      self.db.save(jsonDictionary)
-    except:
-      e = sys.exc_info()[0]
-      print 'Failed to save: ',e
-      print jsonDictionary
-      sys.exit(0)
+      for fileName in files:
+        fileNamePath = os.path.join(root, fileName)
+        try:
+          if fileNamePath.endswith('.xml'):
+            print("Parsing %s" % fileNamePath)
+            self.parseDocBook(fileNamePath)
+        except Exception, e:
+          print ("Couldn't parse xml from %s" % fileNamePath)
+          print str(e)
+          traceback.print_exc()
+          continue
 
-  def loadDesign(self):
-      """Load the design documents for the search views
-      http://127.0.0.1:5984/dicom_search/_design/search/_view/paraByWord?key=%22acted%22&include_docs=true&reduce=false
-      """
-      self.db['_design/search'] = {
-              'language' : 'javascript',
-              'views' : {
-                  'paraByWord' : {
-                      'map' : '''
-                        function(doc) {
-                          if (doc.word) {
-                            emit( doc.word, { "_id" : doc.paraID } );
-                          }
-                        }
-                      ''',
-                      'reduce' : '''_count()''',
-                    }
-                }
-            }
-
-
-  def parseDocBook(self,docBookPath):
+  def parseDocBook(self, docBookPath):
     """Make a document for each para tag in the xml citing
     which section they are in.  Then make a document with each
     word in the paragraph pointing to that paragraph document id.
     """
-    self.etree =ET.parse(docBookPath)
-    part = self.etree.getroot()
+    etree = ET.parse(docBookPath)
+    part = etree.getroot()
     self.ids = [os.path.splitext(os.path.split(docBookPath)[-1])[0]]
 
-    itemIds = {"para":1,"term":1}
     path = []
     print 'we are starting'
     self.nChapters = 0
-    self.parseElementParagraphs(part,path,itemIds,0)
+    self.parseElementParagraphs(part, path, 1, 0)
 
-    ##self.parseElement(part)
-
-  
-
-  def parseElementParagraphs(self,element,itemPath,itemIds,level):
+  def parseElementParagraphs(self, element, itemPath, termId, level):
     # reset paragraph counter to facilitate finding of the paragraph
     #  in HTML version within id'd element
-    resetCounter = self.nameMap['id'] in element.attrib
+    resetCounter = self.NAME_MAP['id'] in element.attrib
     printId = None
     if resetCounter:
-      printId = element.attrib[self.nameMap['id']]
+      printId = element.attrib[self.NAME_MAP['id']]
     #print ' '*level,element.tag,'level=',level,'id=',printId
 
-    if element.tag == self.nameMap['para'] or element.tag == self.nameMap['term']:
-      itemType = element.tag.split('}')[1]
-      currentNumber = itemIds[itemType]
+    if element.tag == self.NAME_MAP['para'] or element.tag == self.NAME_MAP['term']:
       thisText = ET.tostring(element,method="text",encoding="utf-8")
       # remove duplicate spaces
       thisText = re.sub("\s\s+"," ",thisText)
       # ignore (almost) empty paragraphs
-      if len(thisText)>1:        
-        thisId = ','.join(itemPath)+','+itemType+'_%d' % currentNumber
+      if len(thisText)>1:
+        if element.tag == self.NAME_MAP['para']:
+          try:
+            thisId = ','.join(itemPath)+','+element.attrib[self.NAME_MAP['id']]
+          except KeyError:
+            return termId
+        else:
+          itemType = element.tag.split('}')[1]
+          thisId = ','.join(itemPath)+','+itemType+'_%d' % termId
         jsonDictionary = {}
         jsonDictionary['_id'] = thisId
         jsonDictionary['text'] = unicode(thisText,'utf-8')
         jsonDictionary['xml_id'] = thisId.split(',')[-2]
         self.save(jsonDictionary)
-        #self.SendToDB(paraId, paraText)
-      itemIds[itemType] = itemIds[itemType]+1
-      #print ' '*level,'Added ID:',thisId
-      #print ' '*level,'Added text:',thisText
-      #print ' '*level,'New counters:',itemIds
-      # bump the counter even for empty paragraphs, since this will be needed
-      #  for locating them later
+      if element.tag == self.NAME_MAP['term']:
+        termId += 1
     else:
       if resetCounter:
-        resetItemIds = {"para":1,"term":1}
-        elementId = self.nameMap['id']
-        itemPath.append(element.attrib[elementId])        
+        resetTermId = 1
+        elementId = self.NAME_MAP['id']
+        itemPath.append(element.attrib[elementId])
       '''
-      if element.tag == self.nameMap['chapter']:
+      if element.tag == self.NAME_MAP['chapter']:
         self.nChapters = self.nChapters+1
         if self.nChapters>60:
           raise SystemExit
       '''
       for child in element:
-        #print ' parsing child, path: ',itemPath,' id: ',itemIds,' level: ',level
         if resetCounter:
-          resetItemIds = self.parseElementParagraphs(child,itemPath,resetItemIds,level+1)
+          resetTermId = self.parseElementParagraphs(child, itemPath, resetTermId, level+1)
         else:
-          itemIds = self.parseElementParagraphs(child,itemPath,itemIds,level+1)
+          termId = self.parseElementParagraphs(child, itemPath, termId, level+1)
       if resetCounter:
-        itemIds['para'] = itemIds['para']+resetItemIds['para']
-        itemIds['term'] = itemIds['term']+resetItemIds['term']
+        termId =+ resetTermId
         itemPath.pop()
-
-    #print ' '*level,'/'+element.tag,'level=',level,'id=',printId
-    return itemIds
-
-  def parseElement(self,element):
-    if element.tag == "{http://docbook.org/ns/docbook}para":
-      paraText = ET.tostring(element,method="text",encoding="utf-8")
-      #print self.paragraphNumber
-      #print paraText
-  
-      # remove duplicate spaces
-      paraText = re.sub("\s\s+"," ",paraText)
-      #paraText = paraText.replace('\n','')
-     
-      # Problem: if there is an id'd element inside id'd, it will reset the
-      # counter of paragraphs, and 
-      # Solution: keep the map of mapping from id (everything except para) to
-      #   the paragraph number
-      paraLocation = ','.join(self.ids)
-      paragraphNumber = 1
-      if paraLocation in self.paragraphNumberMap.keys():
-        paragraphNumber = self.paragraphNumberMap[paraLocation]
-        self.paragraphNumberMap[paraLocation] += 1
-      else:
-        self.paragraphNumberMap[paraLocation] = paragraphNumber+1
-
-      if len(paraText)>1:
-            jsonDictionary = {}
-            paraID= paraLocation + ',para_%d' % paragraphNumber
-            jsonDictionary['_id'] = paraID
-            jsonDictionary['text'] = unicode(paraText,'utf8')
-            jsonDictionary['xml_id'] = paraID.split(',')[-2]
-            ###self.paragraphNumber += 1
-            #print paraID
-            #print paraText
-            self.save(jsonDictionary)
-
-            if 0: 
-              words = set(map(str.lower, map(str,paraText.split())))
-              for word in words:
-                if len(word) > 4:
-                    #print 'Word is ',word
-                    jsonDictionary = {}
-                    jsonDictionary['_id'] = unicode(paraID,'utf8') + "," + unicode(word,'utf8')
-                    jsonDictionary['paraID'] = unicode(paraID,'utf8')
-                    jsonDictionary['word'] = unicode(word,'utf8')
-                    jsonDictionary['xml_id'] = paraID.split(',')[-2]
-                    self.save(jsonDictionary)
-    # paragraphs can have id's, do not reset if this is the case
-    elif self.nameMap['id'] in element.attrib:
-      self.ids.append(element.attrib[self.nameMap['id']])
-      self.paragraphNumber = 1
-
-
-    if element.tag != "{http://docbook.org/ns/docbook}para":
-      for child in element:
-        self.parseElement(child)
-      if self.nameMap['id'] in element.attrib:
-        self.ids.pop()
-
-
-  def printElement(self,element, indent=0):
-    """Print a single element (recursive)"""
-    if self.skipSceneViews and element.tag == 'SceneView':
-      return
-    if element.tag in self.skipTags:
-      return
-    print(indent*' ' + '(')
-    print(indent*' ' + element.tag)
-    if self.idOnly:
-      if 'id' in element.attrib:
-        idString = element.attrib['id']
-      else:
-        idString = "noID"
-      print(indent*' ' + idString)
-      for key in element.attrib:
-        if key.endswith('ID') or key.endswith('Ref'):
-          print(indent*' ' + '...' + key + ': ' + element.attrib[key])
-    else:
-      print(indent*' ' + str(element.attrib))
-    for child in element:
-      self.printElement(child, indent=indent+4)
-    print(indent*' ' + ')')
-
-  def printScene(self):
-    """Print the entire scene dom"""
-    mrml = self.etree.getroot()
-    self.printElement(mrml)
+    return termId
 
 # }}}
 
+
+class DICOMSearchParserCouchDB(DICOMSearchParser):
+
+  def loadDesign(self):
+    """Load the design documents for the search views
+    http://127.0.0.1:5984/dicom_search/_design/search/_view/paraByWord?key=%22acted%22&include_docs=true&reduce=false
+    """
+    self.dbConnection['_design/search'] = {
+      'language' : 'javascript',
+      'views' : {
+        'paraByWord' : {
+          'map' : '''
+            function(doc) {
+              if (doc.word) {
+                emit( doc.word, { "_id" : doc.paraID } );
+              }
+            }
+          ''',
+        'reduce' : '''_count()''',
+        }
+      },
+      "indexes": {
+        "textSearch": {
+          "analyzer": "standard",
+          "index": '''
+            function(doc){
+              index("default", doc.text,{
+                "store":"yes"
+              });
+              index("location", doc._id, {
+                "store":"yes"
+              });
+            }
+          '''
+        }
+      }
+    }
+
+  def setupDatabase(self):
+    # couchDB_URL='http://admin:admin@localhost:5984'
+    couch = couchdb.Server("http://" + self.user + ":" + self.password + "@" + self.host + ":" + self.port)
+    try:
+      couch.delete(self.databaseName)
+    except http.ResourceNotFound:
+      pass
+    self.dbConnection = couch.create(self.databaseName)
+
+  def save(self, jsonDictionary):
+    try:
+      self.dbConnection.save(jsonDictionary)
+    except http.ResourceConflict:
+      e = sys.exc_info()[0]
+      print 'Failed to save: ', e
+      print jsonDictionary
+      sys.exit(0)
+
+
+class DICOMSearchParserMongoDB(DICOMSearchParser):
+
+  def setupDatabase(self):
+    from pymongo import MongoClient
+    mongoClient = MongoClient()
+    try:
+      mongoClient.drop_database(self.databaseName)
+    except:
+      pass
+    self.dbConnection = mongoClient[self.databaseName]
+    self.documents =  self.dbConnection.documents
+
+  def save(self, jsonDictionary):
+    print self.documents.insert_one(jsonDictionary).inserted_id
+
+
+class DICOMSearchParserMySQL(DICOMSearchParser):
+
+  def setupDatabase(self):
+    # TODO: done in Document. should be more flexible -- now hardcoded
+    # db = peewee.MySQLDatabase("dicom", user="root", unix_socket="/Applications/XAMPP/xamppfiles/var/mysql/mysql.sock")
+    pass
+
+  def save(self, jsonDictionary):
+    from document import Document
+    doc = Document(documentID=jsonDictionary['_id'], text=jsonDictionary['text'])
+    doc.save()
+
+
 # {{{ main, test, and arg parse
 
-def usage():
-    print ("DICOMSearch [DICOMStandard] <CouchDB_URL> <DatabaseName>")
-    print (" CouchDB_URL default http:localhost:5984")
-    print (" DatabaseName default DICOMSearch")
+def main(argv):
+  try:
+    parser = argparse.ArgumentParser(description="DICOM Standard XML Parser")
 
-def main ():
-    global parser
-    dicomStandardPath = sys.argv[1]
-    parser = DICOMSearchParser(dicomStandardPath)
-    if len(sys.argv) > 2:
-        parser.couchDB_URL = sys.argv[2]
-    if len(sys.argv) > 3:
-        parser.databaseName = sys.argv[3]
+    parser.add_argument("-i", "--DICOM-Standard", dest="input_folder", metavar="PATH", default="-", required=True,
+                        help="Folder of input DICOM XML Standard (can contain sub-folders)")
 
+    parser.add_argument("-db", "--database-type", choices=["couch","mongo", "mysql"], dest="dbType", default="couch",
+                        help="Choose between CouchDB, MongoDB or MySQL database")
+
+    parser.add_argument("-host", "--host", dest="host", type=str, default="localhost")
+    parser.add_argument("-p", "--port", dest="port", type=str, default="5984")
+    parser.add_argument("-l", "--login", dest="user", type=str, default="admin")
+    parser.add_argument("-pw", "--password", dest="password", type=str, default="admin")
+    parser.add_argument("-n", "--database-name", dest="databaseName", type=str, default="dicom_standard_2015c")
+    args = parser.parse_args(argv)
+
+    if args.input_folder == "-":
+      print('Please specify input DICOM XML Standard folder!')
+    else:
+      if not os.path.exists(args.input_folder):
+        print "Invalid path: %s" % args.input_folder
+        sys.exit()
+
+    parserClass = None
+
+    if args.dbType == "couch":
+      parserClass = DICOMSearchParserCouchDB
+    elif args.dbType == "mongo":
+      parserClass = DICOMSearchParserMongoDB
+    elif args.dbType == "mysql":
+      parserClass = DICOMSearchParserMySQL
+
+    parser = parserClass(args.input_folder, databaseName=args.databaseName, host=args.host,
+                         port=args.port, user=args.user, password=args.password)
+
+    parser.setupDatabase()
     parser.loadDesign()
     parser.parseToDatabase()
 
-forIPython = """
-import sys
-sys.argv = ('test', '/Users/fedorov/github/DICOMStandard')
-"""
+  except Exception, e:
+    print e
+  sys.exit()
 
-if __name__ == '__main__':
-    try:
-        if len(sys.argv) < 2:
-            raise BaseException('missing arguments')
-        main()
-    except Exception, e:
-        print ('ERROR, UNEXPECTED EXCEPTION')
-        print str(e)
-        traceback.print_exc()
+if __name__ == "__main__":
+  main(sys.argv[1:])
 
 # }}}
 
 # vim:set sr et ts=4 sw=4 ft=python fenc=utf-8: // See Vim, :help 'modeline
 # vim: foldmethod=marker
+
+
+

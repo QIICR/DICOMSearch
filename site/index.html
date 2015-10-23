@@ -1,334 +1,136 @@
-<!DOCTYPE html>
-<html>
-<head>
-	<meta charset="utf-8">
-	<link rel="shortcut icon" type="image/ico" href="http://couchdb.apache.org/favicon.ico">
+<!doctype html>
+<html class="no-js" lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>A Searchable Index of the DICOM Base Standard 2015c</title>
+    <link rel="stylesheet" href="stylesheets/app.css" />
+    <link rel="stylesheet" href="stylesheets/foundation-select.css" />
 
-	<title>A Searchable Index of the DICOM Base Standard 2014a</title>
+    <!--<link href="./css/sumoselect.css" rel="stylesheet" type="text/css" />-->
 
-  <script src="./js/json2.js"></script>
-  <script src="./js/sha1.js"></script>
-  <script src="./js/jquery.js"></script>
-  <script src="./js/jquery.couch.js"></script>
-  <script src="./js/jquery.dialog.js"></script>
-  <script src="./js/sprintf.js"></script>
-  <script src="//code.jquery.com/ui/1.10.3/jquery-ui.js"></script>
-  <script src="./js/jquery.highlight.js"></script>
-  <script src="./js/jquery.multiselect.min.js"></script>
+    <script src="bower_components/modernizr/modernizr.js"></script>
+    <!--<script src="./js/jquery.sumoselect.min.js"></script>-->
 
-  <link href="./css/dicom.css" rel="stylesheet" type="text/css" />
-  <link href="./css/dicom.search.css" rel="stylesheet" type="text/css" />
-  <link href="./css/jquery.multiselect.css" rel="stylesheet" type="text/css" />
-
-  <script>
-      (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
-        (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new
-        Date();a=s.createElement(o),
-          m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
-            })(window,document,'script','//www.google-analytics.com/analytics.js','ga');
-
-        ga('create', 'UA-44852938-2', 'auto');
-        ga('send', 'pageview');
-
-  </script>
-
-  <script>
-
-    var searchResults = [];
-  
-  $(document).ready(function(){
-    $("#partSelector").multiselect();
-
-    $("#multiselect").multiselect({
-      click: function(event,ui){
-        updateHits($("searchWord").val());
+    <script>
+      function fadeOutSearchFrame() {
+        var searchFrameCol = $("#searchFrameColumn")
+        var dicomFrameCol = $("#dicomFrameColumn")
+        searchFrameCol.fadeOut()
+        searchFrameCol.css("display", "none")
+        dicomFrameCol.removeClass("large-9").addClass("large-12")
       }
-    });
-  });
 
-  var fileExists = function(url){
-    var http = new XMLHttpRequest();
-    http.open('HEAD', url, false);
-    http.send();
-    return http.status != 404;
-  };
-
-  function jq( myid ) {
-    return "#" + myid.replace( /(:|\.|\[|\])/g, "\\$1" );
-  }
-
-  function addURLParam(url, name, value){
-    url += (url.indexOf("?") == -1 ? "?" : "&");
-    url += encodeURIComponent(name) + "=" + encodeURIComponent(value);
-    return url;
-  }
-
-  // open the corresponding part of the standard on search result click
-  /*
-  var linkHandler = function(link){
-    loc = link.innerHTML.split(',')
-    partFile = loc[0]
-    partSection = ''
-    dicomBaseURL = "ftp://medical.nema.org/medical/dicom/2013/output"
-    dicomBaseURL = "."
-    for(var idx=2;idx<loc.length;idx++){
-      partSection = loc[loc.length-idx]
-      url = dicomBaseURL+'/chtml/'+partFile+'/'+partSection+'.html';
-      if(fileExists(url)){
-        console.log('Will load this URL: '+url)
-        break;
+      function fadeInSearchFrame() {
+        var searchFrameCol = $("#searchFrameColumn")
+        var dicomFrameCol = $("#dicomFrameColumn")
+        searchFrameCol.css("display", "block")
+        dicomFrameCol.removeClass("large-12").addClass("large-9")
       }
-      partSection=''
-    }
-    if(partSection==''){
-      alert('Unable to resolve this reference: '+link);
-      return;
-    }
+    </script>
+  </head>
+  <body>
 
-    $('#dicomText').load(url,null,function(){
-      anchors = $(this).filter('a');
-      console.log(anchors);
-    });
-    //$('#dicomText').find('a').click(function(){console.log('Hello');return false;});
-    // test
-    // How to scroll to anchor? The below does not seem to work...
-    //aTag=$('#dicomText,'+partSection)
-    //console.log('Will try to scroll to '+partSection)
-    //$('#dicomText').animate({scrollTop: aTag.offset.top},'slow')
+  <nav class="top-bar" data-topbar role="navigation">
+    <section class="middle tab-bar-section">
+      <h3 class="title" style="color:white">A Searchable Index of the DICOM Base Standard 2015c</h3>
+    </section>
+  </nav>
 
-  }*/
+  <div class="row fullHeight">
+    <div class="large-3 columns maxHeight" id="searchFrameColumn"> <!-- left column-->
+      <div class="row searchFrame">
+        <div class="large-12 columns">
+          <div class="row"> <!-- Search field -->
+            <div class="large-7 columns">
+              <label> Keyword
+                <input id="searchWord" type="text" placeholder="Keyword" />
+              </label>
+            </div>
+            <div class="large-5 columns">
+              <label> max. Results
+                <select id="limit">
+                  <option selected value="10">10</option>
+                  <option value="20">20</option>
+                  <option value="100">100</option>
+                  <option value="200">200</option>
+                </select>
+              </label>
+            </div>
+          </div>
+          <div class="row">
+            <div class="large-7 columns">
+              <label>Check where to search</label>
+              <input id="checkboxParagraphs" type="checkbox" checked="checked"><label for="checkboxParagraphs">Paragraphs</label>
+              <input id="checkboxTerms" type="checkbox" checked="checked"><label for="checkboxTerms">Terms</label>
+            </div>
+          </div>
 
-
-$(function() {
-
-  var getURLParameter = function(parameter) {
-      // from http://www.jquerybyexample.net/2012/06/get-url-parameters-using-jquery.html
-      var pageURL = window.location.search.substring(1);
-      var urlVariables = pageURL.split('&');
-      for (var i = 0; i < urlVariables.length; i++) {
-          var parameterName = urlVariables[i].split('=');
-          if (parameterName[0] == parameter) {
-              return parameterName[1];
-          }
-      }
-  };
-
-  var hitCountRequest, hitRequest;
-
-  // clear the search results and issue an ajax query
-  // to the database.  Populate the result are with
-  // results of query.
-  var updateHits = function(key) {
-
-    // clear previous results
-    $('#resultTable').empty();
-    $('#hitList').empty();
-
-    // abort pending requests
-    if (hitCountRequest) { hitCountRequest.abort(); }
-    if (hitRequest) { hitRequest.abort(); }
-
-    var limit = 10; // TODO: better version of this block
-    if ($('#limit20').attr('checked')) { limit = 20; }
-    if ($('#limit100').attr('checked')) { limit = 100; }
-    if ($('#limitAll').attr('checked')) { limit = 200; } // needs to be an int
-
-    var xhr = new XMLHttpRequest(); // TODO: fix it to support earlier browsers
-    xhr.onreadystatechange = function(){
-      if(xhr.readyState == 4){
-        if( (xhr.status >= 200 && xhr.status < 300) || xhr.status == 304){
-          var jsonResponse = JSON.parse(xhr.responseText);
-          $('#hitList').append($("<p class='hitcount'>Results for \""+key+"\" ("+jsonResponse.rows.length+" hits)</p>"));
-
-          $.each(jsonResponse.rows, function(index, value) {
-            var partID = value.id.split(',')[0];
-            excerpt = "<div class='stickynote' data-location='"+value.id+"'><p class='citation'>"+partID+"</p>";
-            excerpt = excerpt + "<p class='paragraph'>"+value.fields.default+"</p></div>";
-            elem = $(excerpt);
-            $('#resultTable').append(elem);
-
-          elem.on('click',function(){
-            citation = $(this).attr("data-location").split(',');
-            partFile = sprintf("part%02d", citation[0].split('.')[1])
-            partSection = ''
-            dicomBaseURL = "ftp://medical.nema.org/medical/dicom/2014a/output"
-            dicomBaseURL = "."
-            for(var idx=2;idx<citation.length;idx++){
-              partSection = citation[citation.length-idx]
-              url = dicomBaseURL+'/chtml/'+partFile+'/'+partSection+'.html';
-              if(fileExists(url)){
-                break;
-              }
-              partSection=''
-            }
-            if(partSection==''){
-              return;
-            }
-
-            $('.stickynote-selected').removeClass('stickynote-selected');
-            $(this).addClass('stickynote-selected');
-
-            $('#dicomText').load(url,null,function(){
-              $(this).highlight($('#searchWord').val());
-              dataLocation = $('.stickynote-selected').attr('data-location')
-              whereToLocation = $('.stickynote-selected').attr("data-location").split(",")
-              whereToSect = jq(whereToLocation[whereToLocation.length-2]);
-              // this can be 'sect', 'table', 'chapter', anything else? ...
-              typeOfThing = whereToSect.split('_')[0].substring(1) // skip '#'
-              if(typeOfThing == 'sect'){
-                typeOfThing = 'section';
-              }
-              // elements with the actual id are not those that contain
-              // paragraphs. Instead, we look for the parent element of the same
-              // class that does not have id.
-              whereToSect = $(whereToSect).closest('.'+typeOfThing+':not([id])')
-              whereToPara = Number(whereToLocation[whereToLocation.length-1].split('_')[1])-1;
-              par = $(whereToSect).find('p')[whereToPara]
-              $('.right').scrollTop(0);
-              $('.right').scrollTop($(par).position().top);
-
-              // would be nice to reload the next/prev page into the same div
-              var allLinks = $(this).find('a');
-              for(var i=0;i<allLinks.length;i++){
-                thisLink = allLinks[i];
-                origHref = thisLink.href.split('/');
-                fileName = origHref[origHref.length-1];
-                thisLink.href='http://medical.nema.org/medical/dicom/2014a/output/chtml/'+partFile+'/'+fileName;
-                thisLink.target='_blank';
-              };
-              var allImages = $(this).find('img');
-              for(var i=0;i<allImages.length;i++){
-                thisImage = allImages[i];
-                figPath = thisImage.src.substr(thisImage.src.search('figures'),thisImage.src.length-1);
-                thisImage.src = dicomBaseURL+'/chtml/'+partFile+'/'+figPath;
-              };
-            });
-            
-          });
-
-
-          });
-        }
-      }
-    };
-    var partsSelected = $("#partSelector").val();
-    console.log(partsSelected);
-    var searchURL = "https://fedorov.cloudant.com/dicom_search/_design/search/_search/textSearch";
-    var searchQuery = key;
-    if(partsSelected){
-      searchQuery = searchQuery + " AND (";
-      for(var i=0;i<partsSelected.length;i++){
-        searchQuery = searchQuery+"location:"+partsSelected[i];
-        if(i<partsSelected.length-1){
-          searchQuery = searchQuery + " OR ";
-        };
-      }
-      searchQuery = searchQuery+")";
-      }
-    searchURL = addURLParam(searchURL, "q", searchQuery);
-    console.log('Search URL: '+searchURL);
-    // Lucene search will return at most 200 hits at a time
-    // for now, no support for bookmarks, show just the first 200
-    searchURL = addURLParam(searchURL, "limit", limit);
-    console.log('Search URL: '+searchURL);
-    xhr.open("get",searchURL,true);
-    xhr.send(null);
-
-  };
-
-  // make the limit input into a jqui spinner
-  $('#limit').buttonset();
-
-  // update result on key press
-  $('#searchWord').keyup(function(e) {
-    updateHits($(this).val());
-  });
-  $('#limit input').click(function(e) {
-    updateHits($('#searchWord').val());
-  });
-
-  // set up initial search
-  var searchWord = 'DICOM';
-  var passedSearchWord = getURLParameter('search');
-  if (passedSearchWord) {
-    searchWord = passedSearchWord;
-  }
-  $('#searchWord').val(searchWord);
-  updateHits(searchWord);
-  $('#searchWord').focus();
-});
-	</script>
-</head>
-
-<body>
-	<div class="header">
-			<h1>A Searchable Index of the DICOM Base Standard 2014a</h1>
-  </div>
-
-  <div class="main">
-    <div class="leftTop">
-      <div id="searchBox" class="inputArea">
-
-        <div>
-        <label for="search">Word to search for: </label>
-        <input id="searchWord">
-        </div>
-        <div>
-        <label for="limit">Results per query</label>
-          <input type="radio" id="limit10" name="limit" checked="checked"><label for="limit10">10</label>
-          <input type="radio" id="limit20" name="limit"><label for="limit20">20</label>
-          <input type="radio" id="limit100" name="limit"><label for="limit100">100</label>
-          <input type="radio" id="limitAll" name="limit"><label for="limitAll">200</label>
-        </div>
-        <div>
-          <select id="partSelector" name="partSelector" multiple="multiple">
-            <option value="PS3.1">PS3.1 Introduction and Overview </option>                                  
-            <option value="PS3.2">PS3.2 Conformance</option>
-            <option value="PS3.3">PS3.3 Information Object Definitions  </option>
-            <option value="PS3.4">PS3.4 Service Class Specifications  </option>
-            <option value="PS3.5">PS3.5 Data Structures and Encoding  </option>
-            <option value="PS3.6">PS3.6 Data Dictionary </option>
-            <option value="PS3.7">PS3.7 Message Exchange  </option>
-            <option value="PS3.8">PS3.8 Network Communication Support for Message Exchange</option>
-            <option value="PS3.10">PS3.10  Media Storage and File Format for Data Interchange</option>
-            <option value="PS3.11">PS3.11  Media Storage Application Profiles  </option>
-            <option value="PS3.12">PS3.12  Media Formats and Physical Media for Data Interchange</option>
-            <option value="PS3.14">PS3.14  Grayscale Standard Display Function </option>
-            <option value="PS3.15">PS3.15  Security Profiles </option>
-            <option value="PS3.16">PS3.16  Content Mapping Resource </option> 
-            <option value="PS3.17">PS3.17  Explanatory Information </option>
-            <option value="PS3.18">PS3.18  Web Access to DICOM Persistent Objects (WADO)</option>
-            <option value="PS3.19">PS3.19  Application Hosting </option>
-            <option value="PS3.20">PS3.20  Transformation of DICOM to and from HL7 Standards</option>
-          </select>
+          <div class="row">
+            <div class="large-12 columns">
+              <label> Choose Parts
+                <select id="partSelector" multiple >
+                  <option selected value="PS3.1">PS3.1 Introduction and Overview </option>
+                  <option selected value="PS3.2">PS3.2 Conformance </option>
+                  <option selected value="PS3.3">PS3.3 Information Object Definitions </option>
+                  <option selected value="PS3.4">PS3.4 Service Class Specifications  </option>
+                  <option selected value="PS3.5">PS3.5 Data Structures and Encoding  </option>
+                  <option selected value="PS3.6">PS3.6 Data Dictionary </option>
+                  <option selected value="PS3.7">PS3.7 Message Exchange  </option>
+                  <option selected value="PS3.8">PS3.8 Network Communication Support for Message Exchange </option>
+                  <option selected value="PS3.10">PS3.10  Media Storage and File Format for Data Interchange </option>
+                  <option selected value="PS3.11">PS3.11  Media Storage Application Profiles </option>
+                  <option selected value="PS3.12">PS3.12  Media Formats and Physical Media for Data Interchange </option>
+                  <option selected value="PS3.14">PS3.14  Grayscale Standard Display Function </option>
+                  <option selected value="PS3.15">PS3.15  Security Profiles </option>
+                  <option selected value="PS3.16">PS3.16  Content Mapping Resource </option>
+                  <option selected value="PS3.17">PS3.17  Explanatory Information </option>
+                  <option selected value="PS3.18">PS3.18  Web Access to DICOM Persistent Objects (WADO) </option>
+                  <option selected value="PS3.19">PS3.19  Application Hosting </option>
+                  <option selected value="PS3.20">PS3.20  Transformation of DICOM to and from HL7 Standards </option>
+                </select>
+              </label>
+            </div>
+          </div>
+          <div class="row">
+            <div class="large-12 columns">
+              <p id="hitList" class="hitcount"></p>
+            </div>
+          </div>
         </div>
       </div>
-      <div id="hitList" class="hitList"></div>
+      <div class="row results">
+        <div id="resultTable" class="results large-12 columns maxHeight">
+        </div>
+      </div>
     </div>
-
-    <div class="leftBottom">
-      <div id="resultTable" class="results"></div>
+    <div class="large-9 columns maxHeight" id="dicomFrameColumn"> <!-- right column-->
+      <div class="row maxHeight">
+        <div class="large-12 columns maxHeight noPadding">
+          <iframe id="dicomText" src=""></iframe>
+        </div>
+      </div>
     </div>
+  </div>
 
-    <div class="right">
-      <div id="dicomText"></div>
-    </div>
-
-</div>
-  <div class="footer">
-    <p class="acks"> This interface provided by <a
-      href="http://qiicr.org">QIICR</a> &#169; 2014.
-      <a
-        href="http://www.dclunie.com/dicom-status/status.html#BaseStandard2013">The
-        DICOM Standard</a> is &#169; <a href="http://dicom.nema.org">NEMA</a> 2014.
-    Related projects include:
-    <a href="http://slicer.org">3D Slicer</a>
-    <a href="http://na-mic.org">NA-MIC</a>
-    <a href="http://nac.spl.harvard.edu">NAC</a>
-    <a href="http://ncigt.org">NCIGT</a>
-    <a href="http://commontk.org">CTK</a>
+  <div class="row footer">
+    <p class="acks">This interface provided by <a href="http://qiicr.org">QIICR</a> &#169; 2015.
+      <a href="http://www.dclunie.com/dicom-status/status.html#BaseStandard2013">The DICOM Standard</a> is &#169;
+      <a href="http://dicom.nema.org">NEMA</a> 2015. Related projects include:
+      <a href="http://slicer.org">3D Slicer</a>
+      <a href="http://na-mic.org">NA-MIC</a>
+      <a href="http://nac.spl.harvard.edu">NAC</a>
+      <a href="http://ncigt.org">NCIGT</a>
+      <a href="http://commontk.org">CTK</a>
     </p>
   </div>
-</body>
-</html>
 
+  <script src="bower_components/jquery/dist/jquery.min.js"></script>
+  <script src="./js/jquery.highlight.js"></script>
+  <script src="./js/json2.js"></script>
+  <script src="./js/sprintf.js"></script>
+  <script src="bower_components/foundation/js/foundation.min.js"></script>
+  <script src="./js/helpers.js"></script>
+  <script src="js/app.js"></script>
+  </body>
+</html>
