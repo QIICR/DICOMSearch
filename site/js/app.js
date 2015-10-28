@@ -6,7 +6,12 @@
   //var dicomCHTMLURL = 'http://dicom.nema.org/medical/dicom/current/output/chtml/';
   var searchURL = databaseURL + '_design/search/_search/textSearch';                // TODO: if search document is different, change here
 
-  var app = angular.module('DICOMSearch', ['ngRoute', 'ngMaterial', 'ngMdIcons']);
+  var app = angular.module('DICOMSearch', ['ngRoute', 'ngMaterial', 'ngMdIcons'])
+    .config(function($mdThemingProvider) {
+      $mdThemingProvider.theme('default')
+        .primaryPalette('indigo')
+        .accentPalette('blue');
+    });
 
   app.controller('DICOMSearchController', ['$scope', '$mdSidenav', '$timeout', '$http', '$interval', function($scope, $mdSidenav, $timeout, $http) {
 
