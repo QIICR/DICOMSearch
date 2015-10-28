@@ -1,136 +1,100 @@
-<!doctype html>
-<html class="no-js" lang="en">
+<html lang="en" ng-app="DICOMSearch">
   <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>A Searchable Index of the DICOM Base Standard 2015c</title>
-    <link rel="stylesheet" href="stylesheets/app.css" />
-    <link rel="stylesheet" href="stylesheets/foundation-select.css" />
-
-    <!--<link href="./css/sumoselect.css" rel="stylesheet" type="text/css" />-->
-
-    <script src="bower_components/modernizr/modernizr.js"></script>
-    <!--<script src="./js/jquery.sumoselect.min.js"></script>-->
-
-    <script>
-      function fadeOutSearchFrame() {
-        var searchFrameCol = $("#searchFrameColumn")
-        var dicomFrameCol = $("#dicomFrameColumn")
-        searchFrameCol.fadeOut()
-        searchFrameCol.css("display", "none")
-        dicomFrameCol.removeClass("large-9").addClass("large-12")
-      }
-
-      function fadeInSearchFrame() {
-        var searchFrameCol = $("#searchFrameColumn")
-        var dicomFrameCol = $("#dicomFrameColumn")
-        searchFrameCol.css("display", "block")
-        dicomFrameCol.removeClass("large-12").addClass("large-9")
-      }
-    </script>
+    <link rel="stylesheet" href="stylesheets/app.css">
+    <meta name="viewport" content="initial-scale=1" />
   </head>
-  <body>
-
-  <nav class="top-bar" data-topbar role="navigation">
-    <section class="middle tab-bar-section">
-      <h3 class="title" style="color:white">A Searchable Index of the DICOM Base Standard 2015c</h3>
-    </section>
-  </nav>
-
-  <div class="row fullHeight">
-    <div class="large-3 columns maxHeight" id="searchFrameColumn"> <!-- left column-->
-      <div class="row searchFrame">
-        <div class="large-12 columns">
-          <div class="row"> <!-- Search field -->
-            <div class="large-7 columns">
-              <label> Keyword
-                <input id="searchWord" type="text" placeholder="Keyword" />
-              </label>
-            </div>
-            <div class="large-5 columns">
-              <label> max. Results
-                <select id="limit">
-                  <option selected value="10">10</option>
-                  <option value="20">20</option>
-                  <option value="100">100</option>
-                  <option value="200">200</option>
-                </select>
-              </label>
-            </div>
-          </div>
-          <div class="row">
-            <div class="large-7 columns">
-              <label>Check where to search</label>
-              <input id="checkboxParagraphs" type="checkbox" checked="checked"><label for="checkboxParagraphs">Paragraphs</label>
-              <input id="checkboxTerms" type="checkbox" checked="checked"><label for="checkboxTerms">Terms</label>
-            </div>
-          </div>
-
-          <div class="row">
-            <div class="large-12 columns">
-              <label> Choose Parts
-                <select id="partSelector" multiple >
-                  <option selected value="PS3.1">PS3.1 Introduction and Overview </option>
-                  <option selected value="PS3.2">PS3.2 Conformance </option>
-                  <option selected value="PS3.3">PS3.3 Information Object Definitions </option>
-                  <option selected value="PS3.4">PS3.4 Service Class Specifications  </option>
-                  <option selected value="PS3.5">PS3.5 Data Structures and Encoding  </option>
-                  <option selected value="PS3.6">PS3.6 Data Dictionary </option>
-                  <option selected value="PS3.7">PS3.7 Message Exchange  </option>
-                  <option selected value="PS3.8">PS3.8 Network Communication Support for Message Exchange </option>
-                  <option selected value="PS3.10">PS3.10  Media Storage and File Format for Data Interchange </option>
-                  <option selected value="PS3.11">PS3.11  Media Storage Application Profiles </option>
-                  <option selected value="PS3.12">PS3.12  Media Formats and Physical Media for Data Interchange </option>
-                  <option selected value="PS3.14">PS3.14  Grayscale Standard Display Function </option>
-                  <option selected value="PS3.15">PS3.15  Security Profiles </option>
-                  <option selected value="PS3.16">PS3.16  Content Mapping Resource </option>
-                  <option selected value="PS3.17">PS3.17  Explanatory Information </option>
-                  <option selected value="PS3.18">PS3.18  Web Access to DICOM Persistent Objects (WADO) </option>
-                  <option selected value="PS3.19">PS3.19  Application Hosting </option>
-                  <option selected value="PS3.20">PS3.20  Transformation of DICOM to and from HL7 Standards </option>
-                </select>
-              </label>
-            </div>
-          </div>
-          <div class="row">
-            <div class="large-12 columns">
-              <p id="hitList" class="hitcount"></p>
-            </div>
-          </div>
-        </div>
+  <body id="main" layout="column" ng-controller="DICOMSearchController as search" style="display: none;" ng-init="init()">
+    <md-toolbar layout="row">
+      <div class="md-toolbar-tools">
+        <md-button id="searchButton" ng-click="toggleLeft()" class="md-primary">
+          <ng-md-icon aria-label="Search DICOM Standard" icon="search" style="fill: white" size="32"></ng-md-icon>
+        </md-button>
+        <span>A Searchable Index of the DICOM Base Standard 2015c (work in progress)</span>
       </div>
-      <div class="row results">
-        <div id="resultTable" class="results large-12 columns maxHeight">
+    </md-toolbar>
+    <div layout="row" flex>
+      <md-sidenav id="sidebar" scroll class="md-sidenav-left md-whiteframe-z2" md-component-id="left">
+        <form id="searchForm">
+          <div layout="row" layout-wrap>
+            <div flex="55">
+              <md-input-container>
+                <label for="testInput">SEARCHTERM</label>
+                <input type="text" id="testInput" ng-model="keyword" md-autofocus ng-change="search()">
+              </md-input-container>
+            </div>
+            <div flex="45">
+              <md-input-container flex>
+                <label>MAX. RESULTS</label>
+                <md-select ng-model="searchLimit" ng-change="search()">
+                  <md-option id="limit" ng-repeat="count in countOptions" value="{{count}}" >{{count}}</md-option>
+                </md-select>
+              </md-input-container>
+            </div>
+          </div>
+          <div layout="row" layout-wrap>
+            <md-input-container flex>
+              <label>PARTS</label>
+              <md-select multiple ng-model="selectedParts">
+                <md-option id="parts" ng-value="part" ng-repeat="part in dicomParts" value="{{part.part}}" >{{part.part}}</md-option>
+              </md-select>
+            </md-input-container>
+          </div>
+          <div layout="row" layout-wrap>
+            <div flex="50">
+            <md-checkbox ng-model="searchTerms" aria-label="Search for terms?" ng-change="search()">
+              Terms
+            </md-checkbox>
+            </div>
+            <div flex="50">
+              <md-checkbox ng-model="searchParagraphs" aria-label="Search  for paragraphs?" ng-change="search()">
+                Paragraphs
+              </md-checkbox>
+            </div>
+          </div>
+          <md-content flex layout-padding>{{searchResults.length}} results for '{{keyword}}'</md-content>
+        </form>
+        <div ng-repeat="result in searchResults">
+          <div class='stickynote' ng-cloak data-location={{result.id}} layout-padding ng-click="onResultClicked($event)">
+            <p class='citation' ng-cloak>{{result.id | onlyPart}}</p>
+            <p class='paragraph' ng-cloak>{{result.fields.default}}</p>
+          </div>
+          <md-divider></md-divider>
         </div>
-      </div>
+        <md-button id="scrollTopButton" ng-show="isOpenLeft() == true && searchFrameVisible == false" class="md-fab md-primary md-hue-2" aria-label="Profile" ng-click="scrollSidebarTop()">
+          <ng-md-icon aria-label="Go to top" icon="keyboard_arrow_up" style="fill: white" size="32"></ng-md-icon>
+        </md-button>
+      </md-sidenav>
+      <md-content id="mainContent" layout="column" flex layout-padding>
+        <iframe id="iFrame" layout="row" flex ng-model="search.iFrame" iframe-onload="iframeLoadedCallBack()"
+                src="https://fedorov.cloudant.com/dicom_standard_2015c/.site/chtml/part01/PS3.1.html" ></iframe>
+      </md-content>
     </div>
-    <div class="large-9 columns maxHeight" id="dicomFrameColumn"> <!-- right column-->
-      <div class="row maxHeight">
-        <div class="large-12 columns maxHeight noPadding">
-          <iframe id="dicomText" src=""></iframe>
+    <md-progress-linear id="progressbar" md-mode="indeterminate"></md-progress-linear>
+
+    <md-toolbar style="max-height:2%" class="layout-row tiny" flex>
+      <div class="md-toolbar-tools">
+        <span>Interface provided by <a href="http://qiicr.org">QIICR</a> &copy;2015.
+          <a href="http://www.dclunie.com/dicom-status/status.html">The DICOM Standard</a> is
+          <a href="http://dicom.nema.org">NEMA</a> &copy;2015. Related projects include:
+          <a href="http://slicer.org">3D Slicer</a>
+          <a href="http://na-mic.org">NA-MIC</a>
+          <a href="http://nac.spl.harvard.edu">NAC</a>
+          <a href="http://ncigt.org">NCIGT</a>
+          <a href="http://commontk.org">CTK</a>
+        </span>
         </div>
-      </div>
-    </div>
-  </div>
-
-  <div class="row footer">
-    <p class="acks">This interface provided by <a href="http://qiicr.org">QIICR</a> &#169; 2015.
-      <a href="http://www.dclunie.com/dicom-status/status.html#BaseStandard2013">The DICOM Standard</a> is &#169;
-      <a href="http://dicom.nema.org">NEMA</a> 2015. Related projects include:
-      <a href="http://slicer.org">3D Slicer</a>
-      <a href="http://na-mic.org">NA-MIC</a>
-      <a href="http://nac.spl.harvard.edu">NAC</a>
-      <a href="http://ncigt.org">NCIGT</a>
-      <a href="http://commontk.org">CTK</a>
-    </p>
-  </div>
-
-  <script src="bower_components/jquery/dist/jquery.min.js"></script>
-  <script src="./js/jquery.highlight.js"></script>
-  <script src="./js/json2.js"></script>
-  <script src="./js/sprintf.js"></script>
-  <script src="bower_components/foundation/js/foundation.min.js"></script>
-  <script src="./js/helpers.js"></script>
-  <script src="js/app.js"></script>
+    </md-toolbar>
+    <script src="bower_components/jquery/dist/jquery.js"></script>
+    <script src="bower_components/sprintf/dist/sprintf.min.js"></script>
+    <script src="bower_components/jquery-highlight/jquery.highlight.js"></script>
+    <script src="bower_components/angular/angular.js"></script>
+    <script src="bower_components/angular-material-icons/angular-material-icons.min.js"></script>
+    <script src="bower_components/angular-route/angular-route.min.js"></script>
+    <script src="bower_components/angular-animate/angular-animate.min.js"></script>
+    <script src="bower_components/angular-aria/angular-aria.min.js"></script>
+    <script src="bower_components/angular-material/angular-material.min.js"></script>
+    <script src="js/app.js"></script>
+    <script src="js/filter.js"></script>
+    <script src="js/directives.js"></script>
   </body>
 </html>
