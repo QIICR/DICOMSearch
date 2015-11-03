@@ -81,7 +81,7 @@
     }
 
     function buildSearchURL() {
-      var searchQuery = encodeURI($scope.keyword);
+      var searchQuery = $scope.keyword;
       var selectedParts = $scope.selectedParts;
       if (selectedParts.length > 0) {
         searchQuery += ' AND (';

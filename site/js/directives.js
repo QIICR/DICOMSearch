@@ -2,21 +2,22 @@
 
   'use strict';
 
-  angular.module('DICOMSearch')
-    .directive('iframeOnload', [function(){
-      return {
-        scope: {
-          callBack: '&iframeOnload'
-        },
-        link: function(scope, element, attrs){
-          element.on('load', function(){
-            return scope.callBack();
-          })
-        }
+  var app = angular.module('DICOMSearch');
+
+  app.directive('iframeOnload', [function(){
+    return {
+      scope: {
+        callBack: '&iframeOnload'
+      },
+      link: function(scope, element, attrs){
+        element.on('load', function(){
+          return scope.callBack();
+        })
       }
-    }]);
-  angular.module('DICOMSearch')
-    .directive('scroll', function ($window) {
+    }
+  }]);
+
+  app.directive('scroll', function ($window) {
     return function(scope, element, attrs) {
       angular.element(element).bind('scroll', function() {
         var sidenav = $('.md-sidenav-left');
@@ -31,6 +32,6 @@
         scope.$apply();
       });
     };
-    });
+  });
 
 })(window.angular);
