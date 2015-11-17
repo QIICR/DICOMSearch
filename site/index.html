@@ -35,7 +35,7 @@
             <div flex="55">
               <md-input-container>
                 <label for="testInput">SEARCHTERM</label>
-                <input type="text" id="testInput" ng-model="keyword" md-autofocus ng-change="search()">
+                <input type="text" id="testInput" ng-model="keyword" ng-model-options="{debounce: 500}" md-autofocus ng-change="search()">
               </md-input-container>
             </div>
             <div flex="45">
