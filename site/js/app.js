@@ -80,8 +80,24 @@
       return url;
     }
 
+    function parseSearchTerms() {
+      var searchTerms = $scope.keyword.split(" ");
+      var searchTermLength = searchTerms.length;
+      var searchQuery = searchTerms[0] + "*";
+      if (searchTermLength > 1) {
+        searchQuery = '"';
+        for (var i = 0; i < searchTermLength; i++) {
+          searchQuery += searchTerms[i] + "*";
+          if (i != (searchTermLength - 1))
+            searchQuery += " ";
+        }
+        searchQuery += '"';
+      }
+      return searchQuery;
+    }
+
     function buildSearchURL() {
-      var searchQuery = $scope.keyword;
+      var searchQuery = parseSearchTerms();
       var selectedParts = $scope.selectedParts;
       if (selectedParts.length > 0) {
         searchQuery += ' AND (';
@@ -93,7 +109,7 @@
         });
         searchQuery = searchQuery + ')';
       }
-      var url = addURLParam(searchURL, 'q', searchQuery.replace(' ', '* '));
+      var url = addURLParam(searchURL, 'q', searchQuery);
       url = addURLParam(url, 'limit', $scope.searchLimit);
       console.log('Search URL: ' + url);
       return url;
@@ -113,14 +129,16 @@
 
     $scope.search = function() {
       setLoading(true);
-      $scope.searchResults = [];
-      var url = buildSearchURL();
-      $http.get(url)
-        .then(function successCallback(response) {
-          setLoading(false);
-          $scope.searchResults = response.data.rows;
-        }, function errorCallback(response) {
-        });
+      //$scope.searchResults = [];
+      if ($scope.keyword.length > 3) {
+        var url = buildSearchURL();
+        $http.get(url)
+          .then(function successCallback(response) {
+            setLoading(false);
+            $scope.searchResults = response.data.rows;
+          }, function errorCallback(response) {
+          });
+      }
     };
 
     $scope.urlExists = function(url){
