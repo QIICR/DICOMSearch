@@ -49,10 +49,7 @@
           </div>
           <div layout="row" layout-wrap>
             <md-input-container flex>
-              <label>PARTS</label>
-              <md-select multiple ng-model="selectedParts">
-                <md-option id="parts" ng-value="part" ng-repeat="part in dicomParts" value="{{part.part}}" >{{part.part}}</md-option>
-              </md-select>
+              <wan-select placeholder="PARTS" source-data="dicomParts" selected-data="selectedParts"></wan-select>
             </md-input-container>
           </div>
           <div layout="row" layout-wrap>
@@ -106,6 +103,7 @@
     <script src="bower_components/angular/angular.js"></script>
     <script src="bower_components/angular-material-icons/angular-material-icons.min.js"></script>
     <script src="bower_components/angular-route/angular-route.min.js"></script>
+    <script src="bower_components/wan-select/src/wan-select.js"></script>
     <script src="bower_components/angular-animate/angular-animate.min.js"></script>
     <script src="bower_components/angular-aria/angular-aria.min.js"></script>
     <script src="bower_components/angular-material/angular-material.min.js"></script>

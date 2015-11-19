@@ -6,7 +6,7 @@
   //var dicomCHTMLURL = 'http://dicom.nema.org/medical/dicom/current/output/chtml/';
   var searchURL = databaseURL + '_design/search/_search/textSearch';                // TODO: if search document is different, change here
 
-  var app = angular.module('DICOMSearch', ['ngRoute', 'ngMaterial', 'ngMdIcons'])
+  var app = angular.module('DICOMSearch', ['ngRoute', 'ngMaterial', 'ngMdIcons', 'fc.wanSelect'])
     .config(function($mdThemingProvider) {
       $mdThemingProvider.theme('default')
         .primaryPalette('indigo')
@@ -47,8 +47,11 @@
           }
         }, 1000 + key*300);
       });
-      $scope.selectedParts = parts;
-      $scope.$watch('selectedParts', $scope.search);
+      $scope.selectedParts = parts.slice(0);
+      $scope.$watchCollection('selectedParts', function(newValue, oldValue) {
+        console.log($scope.selectedParts.length);
+        $scope.search();
+      });
     };
 
     $scope.scrollSidebarTop = function() {
@@ -130,7 +133,7 @@
     $scope.search = function() {
       setLoading(true);
       //$scope.searchResults = [];
-      if ($scope.keyword.length > 3) {
+      if ($scope.keyword.length > 1) {
         var url = buildSearchURL();
         $http.get(url)
           .then(function successCallback(response) {
