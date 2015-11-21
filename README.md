@@ -1,7 +1,9 @@
 DICOMSearch
 ===========
 
-A utility to put the DICOM standard into a searchable database with web app
+A utility to put the DICOM standard into a searchable database with web app.
+
+Live version: https://fedorov.cloudant.com/dicom_search/.site/index.html
 
 This uses python to parse a local copy of the DocBook xml version of the standard
 (see DICOM Standard status page for the most up-to-date version:
