@@ -31,7 +31,7 @@ Caveats
 
 Some things that this doesn't support:
 
-- searches for words less than 5 letters long
+- searches for words less than 2 letters long
 
 - boolean operations or wildcards
 
