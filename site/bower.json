@@ -1,9 +1,31 @@
 {
-  "name": "foundation-compass-app",
+  "name": "DICOMSearchAngular",
   "version": "0.0.1",
-  "private": "true",
+  "authors": [
+    "Christian Herz <christian.herz@mevis.fraunhofer.de>"
+  ],
+  "description": "This page represents a DICOM Standard search engine.",
+  "main": "index.html",
+  "moduleType": [
+    "yui"
+  ],
+  "license": "MIT",
+  "homepage": "https://github.com/QIICR/DICOMSearch",
+  "ignore": [
+    "**/.*",
+    "node_modules",
+    "bower_components",
+    "test",
+    "tests"
+  ],
   "dependencies": {
-    "foundation": "zurb/bower-foundation",
-    "jquery-ui": "~1.11.4"
+    "angular": "1.4.7",
+    "angular-material": "~0.11.4",
+    "angular-animate": "~1.4.7",
+    "angular-aria": "~1.4.7",
+    "angular-route": "~1.4.7",
+    "angular-material-icons": "~0.6.0",
+    "jquery-highlight": "~3.3.0",
+    "sprintf": "~1.0.3"
   }
 }

@@ -7,7 +7,7 @@ Live version: https://fedorov.cloudant.com/dicom_search/.site/index.html
 
 This uses python to parse a local copy of the DocBook xml version of the standard
 (see DICOM Standard status page for the most up-to-date version:
-http://www.dclunie.com/dicom-status/status.html#BaseStandard2013).  
+http://www.dclunie.com/dicom-status/status.html).  
 
 The paragraphs are converted into couchdb documents and pushed to the server.
 Text search is enabled by Lucene index over paragraph text. As such, this
@@ -17,16 +17,35 @@ A utility couchSite copies the local site directory as attachments to a document
 called .site so that the site can be hosted directly from CouchDB.  The site
 allows you to type a keyword and get instant results.
 
-Dependencies
+Dependencies (Parser)
 =======
 
-pymongo - https://pypi.python.org/pypi/pymongo/
+    pymongo - https://pypi.python.org/pypi/pymongo/
+    
+    couchdb - https://pypi.python.org/pypi/CouchDB
+    
+    peewee - https://pypi.python.org/pypi/peewee
+    
+    lxml - https://pypi.python.org/pypi/lxml/3.4.4
 
-couchdb - https://pypi.python.org/pypi/CouchDB
 
-peewee - https://pypi.python.org/pypi/peewee
+Dependencies (WebPage)
+=======
+    npm - https://nodejs.org/en/
+    
+    bower - http://bower.io/
+    
+    wan-select - https://github.com/che85/wan-select
 
-lxml - https://pypi.python.org/pypi/lxml/3.4.4
+
+Installation
+=======
+
+    1. Install npm and bower
+    2. Run 'bower install' from site root directory
+    3. Copy wan-select to subdirectory site/bower_components
+    4. Run index.html
+
 
 Caveats
 =======
