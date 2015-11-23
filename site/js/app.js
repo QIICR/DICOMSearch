@@ -99,6 +99,19 @@
       return searchQuery;
     }
 
+    function parseCheckboxes() {
+      var termParaQuery = "";
+      if (($scope.searchParagraphs == true && $scope.searchTerms == false) ||
+        ($scope.searchParagraphs == false && $scope.searchTerms == true)) {
+        if ($scope.searchParagraphs == true) {
+          termParaQuery = "AND location:para*";
+        } else {
+          termParaQuery = "AND location:term*";
+        }
+      }
+      return termParaQuery;
+    }
+
     function buildSearchURL() {
       var searchQuery = parseSearchTerms();
       var selectedParts = $scope.selectedParts;
@@ -113,6 +126,8 @@
         searchQuery = searchQuery + ')';
       }
       var url = addURLParam(searchURL, 'q', searchQuery);
+      var termParaQuery = parseCheckboxes();
+      url += termParaQuery;
       url = addURLParam(url, 'limit', $scope.searchLimit);
       console.log('Search URL: ' + url);
       return url;
