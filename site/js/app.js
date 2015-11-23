@@ -213,9 +213,9 @@
         var id = whereToLocation[whereToLocation.length - 1];
         var itemType = id.split('_')[0];
         if (itemType == 'term') {
-          whereToSect = dicomLookupView.find(whereToSect).closest('.' + typeOfThing + ':not([id])');
+          whereToSect = dicomLookupHTMLBody.find('.' + typeOfThing);
           var whereToPara = Number(id.split('_')[1]) - 1;
-          id = whereToSect.find('p')[whereToPara];
+          id = whereToSect.find('dd p')[whereToPara];
         } else if (itemType == 'para') {
           id = '#' + id;
         }
