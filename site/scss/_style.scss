@@ -41,3 +41,10 @@
 #scrollTopButton {
   position: fixed;
 }
+
+.linkButton {
+  @extend .md-button;
+  margin: 0px;
+  min-height: 24px;
+  min-width: 24px;
+}

@@ -3,7 +3,7 @@
   var baseURL = 'https://fedorov.cloudant.com/';          // TODO: needs to be changed depending on base
   var databaseURL = baseURL + 'dicom_standard_2015c/';    // TODO: Database and site route
   var dicomCHTMLURL = databaseURL + '.site/chtml/';      // TODO: if chtml root is different change here
-  //var dicomCHTMLURL = 'http://dicom.nema.org/medical/dicom/current/output/chtml/';
+  var dicomNEMAURL = 'http://dicom.nema.org/medical/dicom/current/output/chtml/';
   var searchURL = databaseURL + '_design/search/_search/textSearch';                // TODO: if search document is different, change here
 
   var app = angular.module('DICOMSearch', ['ngRoute', 'ngMaterial', 'ngMdIcons', 'fc.wanSelect'])
@@ -13,18 +13,66 @@
         .accentPalette('blue');
     });
 
-  app.controller('DICOMSearchController', ['$scope', '$mdSidenav', '$timeout', '$http', '$interval', function($scope, $mdSidenav, $timeout, $http) {
+  app.controller('DICOMSearchController', ['$scope', '$mdDialog', '$mdSidenav', '$timeout', '$http', '$interval',
+    function($scope, $mdDialog, $mdSidenav, $timeout, $http) {
 
     $scope.toggleLeft = buildToggler('left');
     $scope.keyword = '';
     $scope.countOptions = [10, 20, 50, 100, 200];
     $scope.searchLimit = $scope.countOptions[0];
 
+    $scope.activeResult = null;
     $scope.searchTerms = true;
     $scope.searchParagraphs = true;
     $scope.searchResults = [];
 
     $scope.dicomParts = parts;
+
+    $scope.showLink = function($event) {
+      $event.stopPropagation();
+      $mdDialog.show(
+        $mdDialog.alert()
+          .clickOutsideToClose(true)
+          .title('Copy the following link for sharing.')
+          .content(this.result.directLink)
+          .ariaLabel('Dialog for showing Hardlink to DICOM Standard for currently selected search result')
+          .ok('Close')
+      );
+    };
+
+    $scope.showBibtex = function($event) {
+      $event.stopPropagation();
+      $mdDialog.show(
+        $mdDialog.alert({
+          targetEvent: $event,
+          template:
+          '<md-dialog aria-label="Bibtex Dialog">' +
+          '  <md-toolbar>'+
+          '    <div class="md-toolbar-tools">'+
+          '      <h2>Bibtex citation</h2>'+
+          '    </div>'+
+          '  </md-toolbar>'+
+          '  <md-content class="md-dialog-content" style="background-color: lightgray;">' +
+          '    <md-list>' +
+          '      <md-item ng-repeat="line in ctrl.result.bibtex">' +
+          '        <p style="margin: 0px">{{line}}</p>' +
+          '      </md-item>' +
+          '    </md-list>' +
+          '  </md-content>' +
+          '</md-dialog>',
+          locals: {
+            result: $scope.activeResult
+          },
+          bindToController: true,
+          controllerAs: 'ctrl',
+          controller: 'DICOMSearchController'
+        }).clickOutsideToClose(true)
+      )
+    };
+
+    $scope.closeDialog = function() {
+      $mdDialog.hide();
+    };
 
     $scope.$watch('searchFrameVisible', function(data) {
       if (data === false) {
@@ -126,8 +174,7 @@
         searchQuery = searchQuery + ')';
       }
       var url = addURLParam(searchURL, 'q', searchQuery);
-      var termParaQuery = parseCheckboxes();
-      url += termParaQuery;
+      url += parseCheckboxes();
       url = addURLParam(url, 'limit', $scope.searchLimit);
       console.log('Search URL: ' + url);
       return url;
@@ -147,7 +194,7 @@
 
     $scope.search = function() {
       setLoading(true);
-      //$scope.searchResults = [];
+      $scope.activeResult = null;
       if ($scope.keyword.length > 1) {
         var url = buildSearchURL();
         $http.get(url)
@@ -159,30 +206,35 @@
       }
     };
 
-    $scope.urlExists = function(url){
+    function urlExists(url) {
       var http = new XMLHttpRequest();
       http.open('HEAD', url, false);
       http.send();
       return http.status != 404;
-    };
+    }
 
-    $scope.onResultClicked = function(event) {
-      var citation = this.result.id.split(',');
+    function getURL(result) {
+      var citation = result.id.split(',');
       var partFile = sprintf('part%02d', citation[0].split('.')[1]);
       var url = '';
 
       for(var idx=2; idx<citation.length; idx++){
         var partSection = citation[citation.length-idx];
 
-        var url = dicomCHTMLURL+partFile+'/'+partSection+'.html';
-        if(this.urlExists(url)){
+        url = dicomCHTMLURL+partFile+'/'+partSection+'.html';
+        if(urlExists(url)){
           break;
         }
         url = '';
       }
+      return url;
+    }
 
+    $scope.onResultClicked = function(event) {
+      var url = getURL(this.result);
       if (url != '') {
         selectResult(event.target);
+        $scope.activeResult = this.result;
         var iFrame = $('#iFrame');
         if (url != iFrame.attr('src')) {
           iFrame.attr('src', url);
@@ -193,15 +245,44 @@
       }
     };
 
+    function generateBibtex(result) {
+      var year = 2015;
+      var version = "c";
+      var partName = getPartName(result.part);
+      var bibtex = [];
+      bibtex.push(sprintf('@INCOLLECTION{National_Electrical_Manufacturers_Association_NEMA%i-tp,', year));
+      bibtex.push(sprintf('title = "%s",', result.headline));
+      bibtex.push(sprintf('booktitle = "{DICOM} {%s} %i%s - %s",', result.part, year, version, partName));
+      bibtex.push('author = "{National Electrical Manufacturers Association (NEMA)}",');
+      bibtex.push(sprintf('year = %s}', year));
+      result.bibtex = bibtex;
+    }
+
+    function getPartName(part) {
+      var name = "";
+      angular.forEach(parts, function(value){
+        if (value.part == part) {
+          name = value.name;
+        }
+      });
+      return name;
+    }
+
+    function generateDirectLink(result) {
+      var url = getURL(result);
+      url = url.replace(dicomCHTMLURL, dicomNEMAURL);
+      result.directLink = url + result.uid;
+    }
+
     $scope.iframeLoadedCallBack = function(){
-      setLoading(false);
-      var dicomLookupView = $('#iFrame').contents();
-      var dicomLookupHTMLBody = dicomLookupView.find('html,body');
-      dicomLookupHTMLBody.highlight($scope.keyword);
-      dicomLookupView.find('.highlight').css('background-color', 'yellow');
-      var sticknote = $('.stickynote-selected');
-      if (sticknote.length) {
-        var whereToLocation = sticknote.attr('data-location').split(',');
+      var result = $scope.activeResult;
+      if (result != null) {
+        var dicomLookupView = $('#iFrame').contents();
+        var dicomLookupHTMLBody = dicomLookupView.find('html,body');
+        dicomLookupHTMLBody.highlight($scope.keyword);
+        dicomLookupView.find('.highlight').css('background-color', 'yellow');
+        var whereToLocation = result.id.split(',');
+        result.part = whereToLocation[0];
         var whereToSect = whereToLocation[whereToLocation.length - 2];
 
         // this can be 'sect', 'table', 'chapter', anything else? ...
@@ -210,20 +291,20 @@
           typeOfThing = 'section';
         }
 
-        var id = whereToLocation[whereToLocation.length - 1];
-        var itemType = id.split('_')[0];
+        result.uid = whereToLocation[whereToLocation.length - 1];
+        var itemType = result.uid.split('_')[0];
         if (itemType == 'term') {
           whereToSect = dicomLookupHTMLBody.find('.' + typeOfThing);
-          var whereToPara = Number(id.split('_')[1]) - 1;
-          id = whereToSect.find('dd p')[whereToPara];
+          var whereToPara = Number(result.uid.split('_')[1]) - 1;
+          result.uid = '#' + whereToSect.find('dd p')[whereToPara].children[0].id;
         } else if (itemType == 'para') {
-          id = '#' + id;
+          result.uid = '#' + result.uid;
         }
 
-        if (id) {
-          var paragraph = dicomLookupView.find(id);
+        if (result.uid) {
+          var paragraph = dicomLookupView.find(result.uid);
           var topPosition = paragraph.position().top;
-          topPosition = topPosition-$('#mainContent').height()/2;
+          topPosition = topPosition - $('#mainContent').height() / 2;
           if (topPosition > 0) {
             dicomLookupHTMLBody.animate({scrollTop: topPosition}, 500);
           } else {
@@ -233,10 +314,15 @@
           var color = element.css('background-color');
           element.css('border', 'dotted 2px red');
 
-          setTimeout(function(){
+          setTimeout(function () {
             element.css('border', 'none');
           }, 2000);
+
+          result.headline = $(dicomLookupHTMLBody.find('th')[0]).text()
+          generateBibtex(result);
+          generateDirectLink(result)
         }
+        setLoading(false);
       }
     };
 
