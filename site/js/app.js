@@ -79,7 +79,6 @@
       });
       $scope.selectedParts = parts.slice(0);
       $scope.$watchCollection('selectedParts', function(newValue, oldValue) {
-        console.log($scope.selectedParts.length);
         $scope.search();
       });
     };
@@ -290,24 +289,26 @@
 
         if (result.uid) {
           var paragraph = dicomLookupView.find(result.uid);
-          var topPosition = paragraph.position().top;
-          topPosition = topPosition - $('#mainContent').height() / 2;
-          if (topPosition > 0) {
-            dicomLookupHTMLBody.animate({scrollTop: topPosition}, 500);
-          } else {
-            dicomLookupHTMLBody.scrollTop(0);
+          if (typeof paragraph.position() != 'undefined') {
+            var topPosition = paragraph.position().top;
+            topPosition = topPosition - $('#mainContent').height() / 2;
+            if (topPosition > 0) {
+              dicomLookupHTMLBody.animate({scrollTop: topPosition}, 500);
+            } else {
+              dicomLookupHTMLBody.scrollTop(0);
+            }
+            var element = paragraph.closest('p');
+            var color = element.css('background-color');
+            element.css('border', 'dotted 2px red');
+
+            setTimeout(function () {
+              element.css('border', 'none');
+            }, 2000);
+
+            result.headline = $(dicomLookupHTMLBody.find('th')[0]).text()
+            generateBibtex(result);
+            generateDirectLink(result)
           }
-          var element = paragraph.closest('p');
-          var color = element.css('background-color');
-          element.css('border', 'dotted 2px red');
-
-          setTimeout(function () {
-            element.css('border', 'none');
-          }, 2000);
-
-          result.headline = $(dicomLookupHTMLBody.find('th')[0]).text()
-          generateBibtex(result);
-          generateDirectLink(result)
         }
         setLoading(false);
       }
