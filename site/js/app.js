@@ -29,37 +29,19 @@
     $scope.dicomParts = parts;
 
     $scope.showLink = function($event) {
-      $event.stopPropagation();
-      $mdDialog.show(
-        $mdDialog.alert()
-          .clickOutsideToClose(true)
-          .title('Copy the following link for sharing.')
-          .content(this.result.directLink)
-          .ariaLabel('Dialog for showing Hardlink to DICOM Standard for currently selected search result')
-          .ok('Close')
-      );
+      this.showDialog($event, 'templates/directlink.tmpl.html');
     };
 
-    $scope.showBibtex = function($event) {
+      $scope.showBibtex = function($event) {
+      this.showDialog($event, 'templates/bibtex.tmpl.html');
+    };
+
+    $scope.showDialog = function ($event, templateURL) {
       $event.stopPropagation();
       $mdDialog.show(
         $mdDialog.alert({
           targetEvent: $event,
-          template:
-          '<md-dialog aria-label="Bibtex Dialog">' +
-          '  <md-toolbar>'+
-          '    <div class="md-toolbar-tools">'+
-          '      <h2>Bibtex citation</h2>'+
-          '    </div>'+
-          '  </md-toolbar>'+
-          '  <md-content class="md-dialog-content" style="background-color: lightgray;">' +
-          '    <md-list>' +
-          '      <md-item ng-repeat="line in ctrl.result.bibtex">' +
-          '        <p style="margin: 0px">{{line}}</p>' +
-          '      </md-item>' +
-          '    </md-list>' +
-          '  </md-content>' +
-          '</md-dialog>',
+          templateUrl: templateURL,
           locals: {
             result: $scope.activeResult
           },
@@ -105,6 +87,11 @@
     $scope.scrollSidebarTop = function() {
       $('.md-sidenav-left').animate({ scrollTop: '0' }, 500);
     };
+
+    $scope.isActiveResult = function(result) {
+      return result == $scope.activeResult;
+    };
+
 
     $scope.isOpenLeft = function() {
       return $mdSidenav('left').isOpen();
