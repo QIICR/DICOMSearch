@@ -238,6 +238,8 @@
       var bibtex = [];
       bibtex.push(sprintf('@INCOLLECTION{National_Electrical_Manufacturers_Association_NEMA%i-tp,', year));
       bibtex.push(sprintf('title = "%s",', result.headline));
+      bibtex.push(sprintf('url = "%s",', result.directLink));
+      bibtex.push(sprintf('chapter = "%s",', result.chapter));
       bibtex.push(sprintf('booktitle = "{DICOM} {%s} %i%s - %s",', result.part, year, version, partName));
       bibtex.push('author = "{National Electrical Manufacturers Association (NEMA)}",');
       bibtex.push(sprintf('year = %s}', year));
@@ -305,9 +307,10 @@
               element.css('border', 'none');
             }, 2000);
 
-            result.headline = $(dicomLookupHTMLBody.find('th')[0]).text()
-            generateBibtex(result);
+            result.headline = $(dicomLookupHTMLBody.find('th')[0]).text();
+            result.chapter = $(dicomLookupHTMLBody.find('th')[1]).text();
             generateDirectLink(result)
+            generateBibtex(result);
           }
         }
         setLoading(false);
