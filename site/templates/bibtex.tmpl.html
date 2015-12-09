@@ -1,0 +1,14 @@
+<md-dialog aria-label="Bibtex Dialog">
+  <md-toolbar>
+    <div class="md-toolbar-tools">
+      <h2>Bibtex</h2>
+    </div>
+  </md-toolbar>
+  <md-content class="md-dialog-content" style="background-color: lightgray;">
+    <md-list>
+      <md-item ng-repeat="line in ctrl.result.bibtex">
+        <p style="margin: 0px">{{line}}</p>
+      </md-item>
+    </md-list>
+  </md-content>
+</md-dialog>

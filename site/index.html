@@ -20,11 +20,11 @@
         <md-button id="searchButton" ng-click="toggleLeft()" class="md-primary">
           <ng-md-icon aria-label="Search DICOM Standard" icon="search" style="fill: white" size="32"></ng-md-icon>
         </md-button>
-        <span>A Searchable Index of the DICOM Base Standard 2015c (work in progress)</span>
+        <span>A Searchable Index of the DICOM Base Standard 2015c</span>
       </div>
-      <md-button ng-click="" class="md-primary">
+      <md-button ng-click="" class="md-primary" aria-label="QIICR homepage link">
         <a href="http://qiicr.org/" target="_blank">
-          <img class="png-icon" src="assets/QIICR_horizontal.png" style="max-height: 32px;max-width: 100%;">
+          <img class="png-icon" src="assets/QIICR_horizontal.png" style="max-height: 50px;max-width: 100%;">
         </a>
       </md-button>
     </md-toolbar>
@@ -59,7 +59,7 @@
             </md-checkbox>
             </div>
             <div flex="50">
-              <md-checkbox ng-model="searchParagraphs" aria-label="Search  for paragraphs?" ng-change="search()">
+              <md-checkbox ng-model="searchParagraphs" aria-label="Search for paragraphs?" ng-change="search()">
                 Paragraphs
               </md-checkbox>
             </div>
@@ -68,7 +68,21 @@
         </form>
         <div ng-repeat="result in searchResults">
           <div class='stickynote' ng-cloak data-location={{result.id}} layout-padding ng-click="onResultClicked($event)">
-            <p class='citation' ng-cloak>{{result.id | onlyPart}}</p>
+            <div layout="row" layout-wrap>
+              <div flex="70">
+                <p class='citation' ng-cloak>{{result.id | onlyPart}}</p>
+              </div>
+              <div flex="15">
+                <md-button ng-disabled="isActiveResult(result) == false" aria-label="Export bibtex citation" class="linkButton" ng-click="showBibtex($event, result)">
+                  <img class="png-icon" src="assets/bibtex.png" style="max-height: 24px;max-width: 100%;">
+                </md-button>
+              </div>
+              <div flex="15">
+                <md-button ng-disabled="isActiveResult(result) == false" aria-label="Export directlink" class="linkButton" ng-click="showLink($event)">
+                  <ng-md-icon icon="link" size="24"></ng-md-icon>
+                </md-button>
+              </div>
+            </div>
             <p class='paragraph' ng-cloak>{{result.fields.default}}</p>
           </div>
           <md-divider></md-divider>
